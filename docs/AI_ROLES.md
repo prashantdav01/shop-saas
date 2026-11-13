@@ -1,32 +1,32 @@
 # Who does what
 
-Claude builds, Codex reviews code, Gemini audits and researches, Prashant decides.
+Claude Code builds, reviews and researches. Prashant decides.
 
 | Role | Lead | Second check |
 | --- | --- | --- |
 | Product owner / business analyst | Prashant | Claude turns shop notes into specs |
-| Domain expert | Prashant, learning from shop owners | Gemini researches electrical trade practice to verify in shops |
-| Architect | Claude | Codex reviews data model and tenancy; Prashant decides |
-| UI/UX designer | Claude | Codex reviews usability; Prashant tests at the counter |
-| Frontend developer | Prashant | Claude Code helps; Codex reviews tricky screens |
-| Backend developer | Claude Code | Codex reviews every PR on stock, billing and serials |
-| QA / tester | Claude Code writes automated tests | Codex looks for missing tests; Prashant tests by hand |
-| DevOps | Claude Code | Gemini audits; Prashant holds keys and deploys |
+| Domain expert | Prashant, learning from shop owners | Claude researches electrical trade practice to verify in shops |
+| Architect | Claude | Fresh-context review of data model and tenancy; Prashant decides |
+| UI/UX designer | Claude | Design review protocol; Prashant tests at the counter |
+| Frontend developer | Claude and Prashant | Fresh-context review on Level 1 and 2 PRs |
+| Backend developer | Claude | Fresh-context code and security review on stock, billing, serials, tax, tenancy, auth |
+| QA / tester | Claude writes automated tests | Reviewer looks for missing tests; Prashant tests by hand |
+| DevOps | Claude | Phase-gate audit; Prashant holds keys and deploys |
 | Project manager | Claude keeps plan, tasks and docs | Prashant sets weekly priorities |
-| Security reviewer | Codex first review | Claude fresh-session review, then Gemini whole-repo audit |
-| Tax and legal | Gemini researches official sources | Claude drafts formats and policies; a CA checks a sample invoice |
-| Support and sales | Prashant | Claude writes Hindi guides and scripts; Gemini checks Hindi |
+| Security reviewer | Claude security review on Level 2 PRs | Phase-gate audit |
+| Tax and legal | Claude researches official sources and drafts formats | A CA checks a sample invoice |
+| Support and sales | Prashant | Claude writes Hindi guides and scripts; a native speaker checks Hindi |
 
 ## Design tasks
 
 | Task | Who |
 | --- | --- |
+| Competitor research | Claude |
 | Screens, flows, PrimeNG theme, component states | Claude |
 | Button labels, errors, empty states (English and Hindi draft) | Claude |
-| Usability and accessibility review | Codex / ChatGPT |
-| Competitor research | Gemini |
-| Logo, app icon, illustrations | ChatGPT or Gemini (image generation) |
-| Hindi wording check | Gemini, then Prashant |
+| Usability and accessibility review | Claude, fresh context, using DESIGN_REVIEW_PROTOCOL.md |
+| Logo, app icon, illustrations | Prashant chooses a tool |
+| Hindi wording check | Prashant or a native speaker |
 | Final approval and counter test | Prashant |
 
-Order per screen: Gemini notes -> Claude design -> Codex review -> Claude revision -> Prashant counter test -> Claude Code builds.
+Order per screen: Claude research notes -> Claude design -> fresh-context design review -> Claude revision -> Prashant counter test -> Claude builds.

@@ -1,6 +1,6 @@
 # Design review protocol
 
-Every AI that designs or reviews a screen uses this checklist. A reviewer reports each failed item as: item number, what is wrong, severity, suggested fix.
+Whoever designs or reviews a screen uses this checklist. A reviewer reports each failed item as: item number, what is wrong, severity, suggested fix.
 
 ## 1. Task fit
 1. The screen's main job can be done in the fewest steps (for billing: scan or search, quantity, pay).

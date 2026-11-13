@@ -1,8 +1,8 @@
 # Project rules: electrical shop inventory SaaS
 
-These rules are shared by Claude Code, Codex and Gemini.
-Edit only this file and the files in `roles/`, then run `node sync-rules.mjs`.
-Never edit CLAUDE.md, AGENTS.md or GEMINI.md by hand: they are generated.
+The team is Prashant plus Claude Code, which builds, reviews and researches.
+Edit only this file and the files in `roles/`, then run `pnpm rules:sync`.
+Never edit CLAUDE.md by hand: it is generated.
 
 ## Product
 
@@ -69,28 +69,33 @@ Never edit CLAUDE.md, AGENTS.md or GEMINI.md by hand: they are generated.
 - Every list screen has loading, empty and error states, pagination and search.
 - Follow docs/DESIGN_REVIEW_PROTOCOL.md for every new screen.
 
-## How the three AIs work together
+## How we work
 
-1. Only one AI writes code on a branch at a time. One branch per feature: `feature/<name>`.
-2. Every change goes through a pull request. Only Prashant merges.
-3. Plan before code for anything bigger than a small fix, and wait for approval.
-4. Add tests with every change to stock, tax, serials, billing or tenancy.
-5. Reviews are written findings (file, line, severity, suggested fix). Reviewers do not edit files unless Prashant asks.
-6. Decisions go in DECISIONS.md. Do not reopen a recorded decision without new evidence.
-7. When a rule is unclear, ask. When you finish, list what you did not verify.
+1. One branch per feature: `feature/<name>`. Every change goes through a pull request. Only Prashant merges.
+2. Plan before code for anything bigger than a small fix, and wait for approval.
+3. Add tests with every change to stock, tax, serials, billing or tenancy.
+4. Decisions go in DECISIONS.md. Do not reopen a recorded decision without new evidence.
+5. When a rule is unclear, ask. When you finish, list what you did not verify.
 
-## Review limits (to avoid endless reviews)
+## Reviews
 
-- Level 0 (text, styling, small fixes): no AI review. Prashant glances and merges.
-- Level 1 (normal features): one Codex review.
-- Level 2 (stock, coils, serials, billing, tax, tenancy, auth, security): one Codex review, and all tests must pass.
-- Gemini audits only at phase gates: end of Phase 2, Phase 3 and Phase 5.
+Claude never reviews code in the same context that wrote it. A review runs as a separate reviewer agent that sees only the diff, these rules, DECISIONS.md and BACKLOG.md.
+
+- Level 0 (text, styling, docs, pipeline config): no review. CI must pass. Prashant glances and merges.
+- Level 1 (normal features): one fresh-context review before the PR is marked ready.
+- Level 2 (stock, coils, serials, billing, tax, tenancy, auth, security): one fresh-context code review plus one security review, and all tests must pass.
+- Phase-gate audit (end of Phase 2, 3 and 5): a whole-repository review against these rules and the phase gate.
 - At most two rounds per pull request: one review, one fix. A second round only for a high-severity finding still open. Then Prashant decides.
 - Only high and medium findings block a merge. Low findings go to BACKLOG.md and are fixed in batches.
-- Formatting and style are settled by the formatter and linter, not by reviewers. Every finding names a file, a line and a concrete failing case or risk.
-- Tie-break order: this rules file, then the tests, then the simpler option, then Prashant's call. The result goes in DECISIONS.md and stays closed.
-- AIs do not debate each other. Prashant passes on only the findings he accepts.
-- Reviewers: report at most 10 findings, most severe first. Do not repeat a finding already rejected in DECISIONS.md or listed in BACKLOG.md.
+- Each finding names a file, a line, a severity and a concrete failing case or risk. At most 10 findings, most severe first. Formatting and style are left to the formatter and linter.
+- Claude checks each finding before acting: real ones are fixed, wrong ones go in DECISIONS.md as rejected with the evidence. Do not repeat a finding already rejected there or listed in BACKLOG.md.
+- The PR description lists the review's findings and what happened to each, so Prashant can see them before merging.
+- Tie-break order: this rules file, then the tests, then the simpler option, then Prashant's call.
+
+## Research
+
+- Tax, legal and compliance facts come from official sources (GST portal, CBIC, government text), cited with a link and the date checked. Anything else is marked unverified.
+- A CA still confirms invoice formats, and a native speaker or Prashant checks Hindi, before real shops use them.
 
 ## Commands
 
@@ -103,4 +108,4 @@ Use Node 22 (`.nvmrc`). Run from the repository root.
 - `pnpm db:migrate`: run database migrations (added in Phase 1 step 4).
 - API docs (not in production): http://localhost:3000/docs. Health check: http://localhost:3000/health.
 - Local settings: copy `.env.example` to `.env` at the repository root.
-- `pnpm rules:sync`: regenerate CLAUDE.md, AGENTS.md and GEMINI.md after editing RULES.md or roles/.
+- `pnpm rules:sync`: regenerate CLAUDE.md after editing RULES.md or roles/.
