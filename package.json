@@ -13,7 +13,8 @@
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write .",
     "db:migrate": "pnpm --filter api db:migrate",
-    "rules:sync": "node sync-rules.mjs"
+    "rules:sync": "node sync-rules.mjs",
+    "test:e2e": "pnpm --filter api test:e2e"
   },
   "devDependencies": {
     "eslint": "^10.14.0",

@@ -16,3 +16,4 @@ Every AI reads this before proposing changes. Add a row when Prashant decides so
 | - | Payment gateway for subscriptions | Open | |
 | 2026-11-13 | Hosting: AWS Mumbai (ap-south-1) | Decided | Exact services (App Runner/ECS, RDS) chosen in Phase 1 step 9 |
 | 2026-11-13 | Code repository lives in `shop-saas/`; `AI Rules/` copied to its root | Decided | Edit rules in the repo from now on |
+| 2026-11-13 | Rejected Codex finding (PR #1): "`main.ts` resolves `.env` outside the repository" | Rejected | `apps/api/dist/main.js` + `../../../.env` is the repo root; verified by starting the built API with only the root `.env` and getting `/health` ok |
