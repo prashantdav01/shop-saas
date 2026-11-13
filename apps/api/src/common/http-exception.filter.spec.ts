@@ -1,8 +1,10 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { HttpExceptionFilter } from './http-exception.filter';
 
@@ -49,6 +51,35 @@ describe('HttpExceptionFilter', () => {
         details: ['name should not be empty'],
       },
     });
+  });
+
+  it('hides the message of a thrown 5xx HttpException', () => {
+    const { host, status, json } = makeHost('req-3');
+    filter.catch(
+      new InternalServerErrorException(
+        'relation "secret_table" does not exist',
+      ),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong. Please try again.',
+        requestId: 'req-3',
+      },
+    });
+  });
+
+  it('hides the message of a 503 too, keeping its code', () => {
+    const { host, json } = makeHost();
+    filter.catch(
+      new ServiceUnavailableException('redis at 10.0.0.5 down'),
+      host,
+    );
+    const body = (json.mock.calls[0] as [{ error: { code: string } }])[0];
+    expect(body.error.code).toBe('SERVICE_UNAVAILABLE');
+    expect(JSON.stringify(body)).not.toContain('10.0.0.5');
   });
 
   it('hides the detail of unexpected errors from the client', () => {

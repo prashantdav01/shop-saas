@@ -71,6 +71,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof rawMessage === 'string') {
         body.message = rawMessage;
       }
+
+      // 5xx messages can carry internal detail (e.g. a wrapped driver error).
+      // Log it, but give the client only the generic text.
+      if (status >= 500) {
+        this.logger.error(exception.stack ?? exception.message);
+        body = {
+          code: CODE_BY_STATUS[status] ?? 'INTERNAL_ERROR',
+          message: 'Something went wrong. Please try again.',
+        };
+      }
     } else {
       this.logger.error(
         exception instanceof Error ? exception.stack : String(exception),
