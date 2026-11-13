@@ -39,7 +39,7 @@ Never edit CLAUDE.md, AGENTS.md or GEMINI.md by hand: they are generated.
 - Every tenant table has `tenant_id`. Every query is scoped to the current tenant. RLS policies on all tenant tables.
 - Issued bills are immutable. Cancel with a reason or issue a credit note.
 - Freeze price, MRP and tax rate on each document line at the time of sale.
-- Store timestamps in UTC, show them in IST. Show dates as DD/MM/YYYY. Format amounts with â‚¹ and lakh/crore grouping through the shared helper only.
+- Store timestamps in UTC, show them in IST. Show dates as DD/MM/YYYY. Format amounts with ₹ and lakh/crore grouping through the shared helper only.
 - All UI text goes through translation files (en, hi). No hard-coded labels.
 - Module switches: `batch_tracking`, `serial_tracking`, `decimal_qty`, `price_lists`, `quotations`, `credit_ledger`, `expiry_tracking`, `pharmacy_compliance`.
 
@@ -110,5 +110,8 @@ Use Node 22 (`.nvmrc`). Run from the repository root.
 - `pnpm install`: install everything.
 - `pnpm dev`: start Postgres (host port 5433) and Redis in Docker, then the API and web dev servers.
 - `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`: run across all packages.
+- `pnpm test:e2e`: API end-to-end tests; needs the Docker services running.
 - `pnpm db:migrate`: run database migrations (added in Phase 1 step 4).
+- API docs (not in production): http://localhost:3000/docs. Health check: http://localhost:3000/health.
+- Local settings: copy `.env.example` to `.env` at the repository root.
 - `pnpm rules:sync`: regenerate CLAUDE.md, AGENTS.md and GEMINI.md after editing RULES.md or roles/.

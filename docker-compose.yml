@@ -1,4 +1,4 @@
-﻿# Local development only. Staging and production use managed AWS services.
+# Local development only. Staging and production use managed AWS services.
 services:
   postgres:
     image: postgres:16-alpine
