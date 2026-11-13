@@ -1,0 +1,735 @@
+// Shop SaaS — revised schema (v2, 2026-11-13)
+// Built from Prashant's draft. Paste into dbdiagram.io to view.
+// Changes from the draft and the reasons are in docs/SCHEMA_NOTES.md.
+//
+// Conventions for every table below:
+// - Every shop-owned table has shop_id, and row-level security (RLS) limits rows
+//   to the current shop: policy shop_id = current_setting('app.shop_id', true)::uuid,
+//   with ENABLE and FORCE. A missing setting matches no rows.
+// - Every shop-owned table has UNIQUE (shop_id, id). Every reference between
+//   shop-owned tables is a composite FK (shop_id, x_id) -> parent (shop_id, id).
+//   The single-column refs below draw the diagram; the binding composite FKs are
+//   listed in section 7 at the end and are what migrations create.
+// - Every staff reference (created_by, approved_by, issued_by ...) is a composite
+//   FK (shop_id, user_id) -> shop_memberships (shop_id, user_id), so only staff of
+//   this shop can be recorded. The API also checks the membership is active and
+//   the role is allowed to approve.
+// - Money: bigint paise. Quantities: numeric(14,3) in the item's base unit.
+// - Percentages: integer basis points (_bp). 1800 = 18.00%.
+// - Timestamps: timestamptz (stored UTC). Business dates (invoice_date) are
+//   computed in Asia/Kolkata, never from UTC.
+// - Status-like varchar columns become Postgres enums or CHECK constraints.
+
+// ==========================================
+// 1. PLATFORM: PLANS, SHOPS, USERS, ROLES
+// ==========================================
+
+Table plans {
+  // Global (not shop-owned). Code reads limits from here, never from the gateway.
+  id uuid [pk]
+  code varchar [unique, not null] // free, starter, pro
+  max_stores int [not null]
+  max_staff int [not null]
+  max_items int [not null]
+}
+
+Table shops {
+  id uuid [pk]
+  plan_id uuid [not null, ref: > plans.id]
+  name varchar [not null]
+  gst_type varchar [not null] // regular, composition, unregistered
+  gstin varchar // required when gst_type = regular or composition
+  state_code char(2) [not null] // GST state code, e.g. 09
+  turnover_band varchar [not null] // sets required HSN length; CA to confirm bands
+  preset varchar [not null] // electrical_electronics
+  subscription_status varchar [not null] // trialing, active, past_due, read_only, cancelled
+  // Module switches (set by the preset, editable by the owner)
+  mod_batch_tracking boolean [not null, default: false]
+  mod_serial_tracking boolean [not null, default: false]
+  mod_decimal_qty boolean [not null, default: false]
+  mod_price_lists boolean [not null, default: false]
+  mod_quotations boolean [not null, default: false]
+  mod_credit_ledger boolean [not null, default: false]
+  mod_expiry_tracking boolean [not null, default: false]
+  mod_pharmacy_compliance boolean [not null, default: false]
+  // Shop policies
+  allow_negative_stock boolean [not null, default: true]
+  mrp_policy varchar [not null, default: 'warn'] // warn, block
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table users {
+  // Global: one person can work in several shops.
+  id uuid [pk]
+  phone varchar [unique, not null] // login by OTP
+  name varchar [not null]
+  created_at timestamptz [not null]
+}
+
+Table shop_memberships {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  user_id uuid [not null, ref: > users.id]
+  role varchar [not null] // owner, manager, cashier, stock_keeper, service_desk
+  max_discount_bp int [not null, default: 0] // basis points: 1000 = 10.00%
+  staff_pin_hash varchar // argon2. An override asks for the manager AND their PIN, never a PIN alone
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, user_id) [unique] // target of every staff reference
+  }
+}
+
+Table stores {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  name varchar [not null] // Godown, Counter
+  type varchar [not null] // godown, counter, branch
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, name) [unique]
+  }
+}
+
+// ==========================================
+// 2. CATALOGUE: BRANDS, CATEGORIES, PRODUCTS, VARIANTS
+// ==========================================
+
+Table brands {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  name varchar [not null]
+  indexes {
+    (shop_id, name) [unique]
+  }
+}
+
+Table categories {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  parent_id uuid [ref: > categories.id] // nested categories (from the 2024 draft)
+  name varchar [not null] // Wires & cables, Switches, Lighting, Fans ...
+  requires_serial boolean [not null, default: false] // serial capture rule per category
+  default_brand_warranty_months int [not null, default: 0]
+  indexes {
+    (shop_id, parent_id, name) [unique]
+  }
+}
+
+Table products {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  category_id uuid [not null, ref: > categories.id]
+  brand_id uuid [ref: > brands.id]
+  name varchar [not null]
+  hsn_code varchar [not null]
+  gst_rate_bp int [not null] // basis points: 1800 = 18%
+  base_unit varchar [not null] // piece, metre, kg
+  purchase_unit varchar [not null] // piece, box, coil, drum
+  purchase_unit_factor numeric(14,3) [not null, default: 1] // base units per purchase unit, e.g. 90.000 m per coil
+  tracks_batches boolean [not null, default: false] // coils are batches
+  tracks_serials boolean [not null, default: false] // defaults from category.requires_serial
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table product_variants {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  product_id uuid [not null, ref: > products.id]
+  sku varchar [not null]
+  barcode varchar
+  attributes jsonb [not null, default: '{}'] // rating, gauge, colour, wattage, finish
+  cost_paise bigint [not null]
+  list_price_paise bigint [not null]
+  mrp_paise bigint // null when the item has no printed MRP (e.g. loose wire)
+  brand_warranty_months int [not null, default: 0]
+  shop_warranty_months int [not null, default: 0] // shop's own promise, if different
+  reorder_level numeric(14,3) [not null, default: 0] // low-stock alert
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  indexes {
+    (shop_id, sku) [unique]
+    (shop_id, barcode) [unique, note: 'partial: where barcode is not null']
+  }
+}
+
+// ==========================================
+// 3. STOCK: LEVELS, MOVEMENTS, BATCHES (COILS), SERIALS, TRANSFERS
+// ==========================================
+
+Table stock_levels {
+  // Cached on-hand per store and variant. Updated only in the same transaction
+  // as a stock_movements row, with the row locked (SELECT ... FOR UPDATE).
+  // When shops.allow_negative_stock is false, that transaction rejects a result < 0.
+  // Tests: on_hand = sum(stock_movements.qty_delta) for the store and variant, and
+  // for batch-tracked variants on_hand = sum(batches.remaining_qty).
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  on_hand numeric(14,3) [not null, default: 0]
+  updated_at timestamptz [not null]
+  indexes {
+    (shop_id, store_id, variant_id) [pk]
+  }
+}
+
+Table batches {
+  // Generic batch. Electrical preset: one row per coil or drum, in metres.
+  // Medical preset later: one row per batch with expiry. Never goes below zero.
+  // A batch belongs to one store for life. remaining_qty changes only in the same
+  // transaction as a stock_movements row for this batch; a test checks
+  // remaining_qty = initial_qty + sum(movements for this batch).
+  // Moving metres to another store creates a new batch there (parent_batch_id),
+  // so the old batch's history never changes meaning.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  parent_batch_id uuid [ref: > batches.id] // split from this batch by a transfer
+  batch_code varchar [not null]
+  initial_qty numeric(14,3) [not null]
+  remaining_qty numeric(14,3) [not null, note: 'CHECK (remaining_qty >= 0)']
+  is_open boolean [not null, default: false] // the coil currently being cut
+  cost_paise bigint [not null] // per base unit
+  mrp_paise bigint // same product can arrive at different MRPs
+  expiry_date date // used only when mod_expiry_tracking
+  received_at timestamptz [not null]
+  indexes {
+    (shop_id, store_id, variant_id, batch_code) [unique]
+    (shop_id, store_id, variant_id, id) [unique, note: 'target of movement and line FKs: a batch can only be used for its own store and variant']
+    (shop_id, store_id, variant_id) [unique, note: 'partial: where is_open — at most one open coil per variant per store']
+  }
+}
+
+Table serials {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  serial_number varchar [not null]
+  status varchar [not null] // in_stock, sold, returned, in_service
+  purchase_line_id uuid [ref: > purchase_lines.id]
+  current_sale_id uuid [ref: > serial_sales.id, note: 'CHECK: not null exactly when status = sold or in_service']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  indexes {
+    (shop_id, variant_id, serial_number) [unique]
+    (shop_id, variant_id, id) [unique, note: 'target of line FKs: a serial can only be used for its own variant']
+  }
+}
+
+Table serial_sales {
+  // One row per sale of a unit, never overwritten. A fan sold, returned and sold
+  // again has two rows, each with its own warranty dates, computed once at sale.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  serial_id uuid [not null, ref: > serials.id]
+  invoice_line_id uuid [not null, ref: > invoice_lines.id]
+  invoice_date date [not null] // copied from the invoice (IST date)
+  brand_warranty_end date [not null] // invoice_date + brand months
+  shop_warranty_end date [not null] // invoice_date + shop months
+  replaces_serial_sale_id uuid [ref: > serial_sales.id] // warranty replacement: links to the original sale
+  returned_by_credit_note_line_id uuid [ref: > credit_note_lines.id] // set when this sale is returned
+  created_at timestamptz [not null]
+}
+
+Table stock_movements {
+  // Append-only ledger. Never updated or deleted.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  batch_id uuid [ref: > batches.id] // coil the metres came from; composite FK (shop_id, store_id, variant_id, batch_id)
+  serial_id uuid [ref: > serials.id] // unit moved; composite FK (shop_id, variant_id, serial_id)
+  movement_type varchar [not null] // purchase, sale, sale_return, purchase_return, transfer_in, transfer_out, adjustment, opening
+  qty_delta numeric(14,3) [not null] // negative out, positive in
+  source_type varchar [not null] // purchase, invoice, credit_note, transfer, adjustment
+  source_id uuid [not null]
+  reason text // required for adjustments and coil corrections
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, variant_id, store_id, created_at)
+    (shop_id, source_type, source_id)
+  }
+}
+
+Table stock_transfers {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  from_store_id uuid [not null, ref: > stores.id]
+  to_store_id uuid [not null, ref: > stores.id] // CHECK from <> to
+  note text
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+}
+
+Table stock_transfer_lines {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  transfer_id uuid [not null, ref: > stock_transfers.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  from_batch_id uuid [ref: > batches.id] // source coil in from_store
+  to_batch_id uuid [ref: > batches.id] // new batch created in to_store (split)
+  serial_id uuid [ref: > serials.id]
+  qty numeric(14,3) [not null] // CHECK > 0
+}
+
+Table stock_adjustments {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  batch_id uuid [ref: > batches.id] // coil length corrections
+  qty_delta numeric(14,3) [not null]
+  reason_code varchar [not null] // damage, theft, count_correction, coil_correction
+  note text
+  approved_by uuid [ref: > users.id]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+}
+
+// ==========================================
+// 4. PARTIES AND PRICE LISTS
+// ==========================================
+
+Table price_lists {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  name varchar [not null] // Retail, Contractor, Dealer
+  basis varchar [not null, default: 'list'] // list, mrp: what the discount applies to
+  discount_bp int [not null, default: 0] // 1500 = 15% off the basis
+  is_default boolean [not null, default: false] // walk-in customers
+  indexes {
+    (shop_id, name) [unique]
+    (shop_id) [unique, note: 'partial: where is_default — exactly one default list per shop']
+  }
+}
+
+Table price_list_items {
+  // Optional per-variant override; otherwise the list's percentage rule applies.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  price_list_id uuid [not null, ref: > price_lists.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  price_paise bigint [not null]
+  indexes {
+    (shop_id, price_list_id, variant_id) [unique]
+  }
+}
+
+Table parties {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  type varchar [not null] // customer, supplier, both
+  name varchar [not null]
+  phone varchar
+  gstin varchar
+  state_code char(2) // required for B2B (GSTIN present)
+  address text
+  price_list_id uuid [ref: > price_lists.id] // null = shop default list
+  credit_allowed boolean [not null, default: false] // false = cash only
+  credit_limit_paise bigint // null with credit_allowed = no limit; CHECK >= 0
+  credit_days int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, phone)
+  }
+}
+
+// ==========================================
+// 5. DOCUMENTS: SERIES, PURCHASES, QUOTATIONS, INVOICES, CREDIT NOTES
+// ==========================================
+
+Table document_series {
+  // Gap-free numbering. The row is locked (FOR UPDATE) in the same transaction
+  // that inserts the document, so a failed insert never consumes a number.
+  // The document stores seq_no; the printed number is prefix + seq_no.
+  // A test checks seq_no runs 1..n with no gaps per shop, type and year.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  doc_type varchar [not null] // invoice, quotation, credit_note
+  financial_year varchar [not null] // 2026-27 (April to March), CHECK format 'YYYY-YY'
+  prefix varchar [not null] // format to be confirmed with a CA
+  next_seq int [not null, default: 1]
+  indexes {
+    (shop_id, doc_type, financial_year) [unique]
+  }
+}
+
+Table purchases {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  supplier_id uuid [not null, ref: > parties.id]
+  supplier_bill_number varchar [not null]
+  bill_date date [not null]
+  subtotal_paise bigint [not null]
+  tax_paise bigint [not null]
+  total_paise bigint [not null]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, supplier_id, supplier_bill_number) [unique] // stops double entry
+  }
+}
+
+Table purchase_lines {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  purchase_id uuid [not null, ref: > purchases.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  qty_purchase_unit numeric(14,3) [not null] // e.g. 2 coils
+  qty_base numeric(14,3) [not null] // e.g. 180.000 metres
+  unit_cost_paise bigint [not null] // per base unit
+  mrp_paise bigint
+  gst_rate_bp int [not null]
+  tax_paise bigint [not null]
+  total_paise bigint [not null]
+}
+
+Table quotations {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  customer_id uuid [not null, ref: > parties.id]
+  quote_date date [not null] // IST date
+  financial_year varchar [not null] // CHECK: matches quote_date
+  seq_no int [not null]
+  quote_number varchar [not null] // prefix + seq_no
+  valid_until date [not null]
+  status varchar [not null] // draft, sent, accepted, expired, invoiced
+  subtotal_paise bigint [not null]
+  tax_paise bigint [not null]
+  total_paise bigint [not null]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, financial_year, seq_no) [unique]
+    (shop_id, financial_year, quote_number) [unique]
+  }
+}
+
+Table quotation_lines {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  quotation_id uuid [not null, ref: > quotations.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  qty_base numeric(14,3) [not null]
+  unit_price_paise bigint [not null]
+  list_price_paise_at_quote bigint [not null] // to warn when list price changed before conversion
+  discount_paise bigint [not null, default: 0]
+  gst_rate_bp int [not null]
+}
+
+Table invoices {
+  // Immutable once issued. Cancel with a reason, or issue a credit note.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  customer_id uuid [ref: > parties.id] // null = walk-in cash customer
+  quotation_id uuid [ref: > quotations.id]
+  invoice_date date [not null] // (issued_at AT TIME ZONE 'Asia/Kolkata')::date — never the UTC date
+  financial_year varchar [not null] // CHECK: matches invoice_date (1 April to 31 March, IST)
+  seq_no int [not null] // from document_series
+  invoice_number varchar [not null] // prefix + seq_no, as printed
+  template_type varchar [not null] // tax_invoice, bill_of_supply, cash_memo (from shop gst_type at issue time)
+  // Seller details frozen at issue, so an old bill reprints exactly
+  seller_name varchar [not null]
+  seller_gstin varchar
+  seller_state_code char(2) [not null]
+  seller_address text [not null]
+  // Buyer details frozen at issue
+  customer_name varchar
+  customer_gstin varchar
+  customer_state_code char(2) // required when customer_gstin is set
+  place_of_supply char(2) [not null]
+  payment_mode varchar [not null, note: 'CHECK: credit or mixed requires customer_id'] // cash, upi, card, credit, mixed
+  status varchar [not null] // issued, cancelled
+  cancel_reason text
+  cancelled_by uuid [ref: > users.id]
+  cancelled_at timestamptz
+  subtotal_paise bigint [not null]
+  discount_paise bigint [not null, default: 0]
+  cgst_paise bigint [not null, default: 0]
+  sgst_paise bigint [not null, default: 0]
+  igst_paise bigint [not null, default: 0]
+  round_off_paise bigint [not null, default: 0] // CHECK between -50 and +50
+  total_paise bigint [not null]
+  issued_by uuid [not null, ref: > users.id]
+  issued_at timestamptz [not null]
+  // CHECK: igst_paise = 0 OR (cgst_paise = 0 AND sgst_paise = 0)
+  // CHECK: intra-state (place_of_supply = seller_state_code) => igst_paise = 0; inter-state => cgst = sgst = 0
+  // Template-to-tax CHECK (e.g. no tax on bill_of_supply, cash_memo): added once a CA confirms
+  indexes {
+    (shop_id, financial_year, seq_no) [unique]
+    (shop_id, financial_year, invoice_number) [unique]
+    (shop_id, invoice_date)
+  }
+}
+
+Table invoice_lines {
+  // Everything needed to reprint the bill is frozen here.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  invoice_id uuid [not null, ref: > invoices.id]
+  variant_id uuid [not null, ref: > product_variants.id]
+  description varchar [not null] // name, brand and attributes at sale time
+  hsn_code varchar [not null]
+  qty_base numeric(14,3) [not null]
+  unit varchar [not null]
+  unit_price_paise bigint [not null]
+  mrp_paise bigint
+  cost_paise bigint [not null] // for margin reports; never printed
+  discount_paise bigint [not null, default: 0]
+  discount_approved_by uuid [ref: > users.id] // manager PIN override
+  gst_rate_bp int [not null]
+  taxable_paise bigint [not null]
+  cgst_paise bigint [not null, default: 0]
+  sgst_paise bigint [not null, default: 0]
+  igst_paise bigint [not null, default: 0]
+  total_paise bigint [not null]
+}
+
+Table credit_notes {
+  // Sales returns and corrections against an issued invoice.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  store_id uuid [not null, ref: > stores.id]
+  invoice_id uuid [not null, ref: > invoices.id]
+  credit_note_date date [not null] // IST date
+  financial_year varchar [not null] // CHECK: matches credit_note_date
+  seq_no int [not null]
+  credit_note_number varchar [not null] // prefix + seq_no
+  reason text [not null]
+  // GST treatment of credit notes (time limits, reporting): needs CA confirmation
+  subtotal_paise bigint [not null]
+  cgst_paise bigint [not null, default: 0]
+  sgst_paise bigint [not null, default: 0]
+  igst_paise bigint [not null, default: 0]
+  total_paise bigint [not null]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, financial_year, seq_no) [unique]
+    (shop_id, financial_year, credit_note_number) [unique]
+  }
+}
+
+Table credit_note_lines {
+  // Over-return guard: the transaction locks the invoice line and rejects when
+  // sum(credit_note_lines.qty_base for that line) would exceed invoice_lines.qty_base.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  credit_note_id uuid [not null, ref: > credit_notes.id]
+  invoice_line_id uuid [not null, ref: > invoice_lines.id]
+  qty_base numeric(14,3) [not null] // CHECK > 0
+  restock boolean [not null, default: true] // false = sent to service or scrapped
+  restock_store_id uuid [ref: > stores.id] // required when restock
+  batch_id uuid [ref: > batches.id] // coil the metres go back to (or a new batch)
+  serial_id uuid [ref: > serials.id] // unit returned
+  // Frozen from the invoice line, pro rata
+  gst_rate_bp int [not null]
+  taxable_paise bigint [not null]
+  cgst_paise bigint [not null, default: 0]
+  sgst_paise bigint [not null, default: 0]
+  igst_paise bigint [not null, default: 0]
+  total_paise bigint [not null]
+}
+
+// ==========================================
+// 6. MONEY OWED, WARRANTY CLAIMS, AUDIT
+// ==========================================
+
+Table payments {
+  // Money received from customers or paid to suppliers.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  party_id uuid [not null, ref: > parties.id]
+  direction varchar [not null] // received, paid
+  amount_paise bigint [not null] // CHECK > 0
+  mode varchar [not null] // cash, upi, cheque, bank_transfer, card
+  reference varchar // UPI ref, cheque number
+  received_at timestamptz [not null]
+  created_by uuid [not null, ref: > users.id]
+}
+
+Table payment_allocations {
+  // Which bills a payment settled; drives dues ageing.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  payment_id uuid [not null, ref: > payments.id]
+  invoice_id uuid [ref: > invoices.id] // received against a sale
+  purchase_id uuid [ref: > purchases.id] // paid against a supplier bill
+  amount_paise bigint [not null] // CHECK > 0; CHECK exactly one of invoice_id, purchase_id
+  // Sum of allocations per payment <= payments.amount_paise (checked in the transaction)
+}
+
+Table party_ledger {
+  // Append-only. Balance per party = sum(amount_paise). Positive = party owes the shop.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  party_id uuid [not null, ref: > parties.id]
+  entry_type varchar [not null] // invoice, payment, credit_note, purchase, opening, adjustment
+  amount_paise bigint [not null]
+  due_date date
+  source_type varchar [not null]
+  source_id uuid [not null]
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, party_id, created_at)
+    (shop_id, source_type, source_id, entry_type) [unique, note: 'a retried request cannot post the same document twice']
+  }
+}
+
+Table warranty_claims {
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  serial_id uuid [not null, ref: > serials.id]
+  customer_id uuid [not null, ref: > parties.id]
+  fault_description text [not null]
+  is_in_warranty boolean [not null] // computed from the serial_sales dates when logged
+  status varchar [not null] // logged, at_brand_service, repaired, replaced, paid_repair, declined, closed
+  serial_sale_id uuid [not null, ref: > serial_sales.id] // the sale the claim is against
+  replacement_serial_id uuid [ref: > serials.id] // new unit; gets its own serial_sales row with replaces_serial_sale_id set. Its warranty end follows shop policy (open question)
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+  resolved_at timestamptz
+}
+
+Table warranty_claim_events {
+  // History of each step in the claim flow.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  claim_id uuid [not null, ref: > warranty_claims.id]
+  from_status varchar
+  to_status varchar [not null]
+  note text
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [not null]
+}
+
+Table audit_logs {
+  // Append-only.
+  id uuid [pk]
+  shop_id uuid [not null, ref: > shops.id]
+  user_id uuid [not null, ref: > users.id]
+  approved_by_user_id uuid [ref: > users.id] // manager PIN override
+  action varchar [not null] // login, role_change, price_override, discount_override, coil_correction, stock_adjustment, serial_edit, bill_cancel, export, delete
+  entity_type varchar [not null]
+  entity_id uuid
+  old_value jsonb
+  new_value jsonb
+  ip_address inet
+  request_id varchar
+  created_at timestamptz [not null]
+  indexes {
+    (shop_id, created_at)
+  }
+}
+
+// ==========================================
+// 7. BINDING COMPOSITE FOREIGN KEYS
+// ==========================================
+// Every shop-owned parent has UNIQUE (shop_id, id). Migrations create exactly these
+// FKs (and not the single-column diagram refs above). A test lists every FK in the
+// database and fails if any shop-owned reference is not composite.
+
+// Shop structure
+Ref: stores.(shop_id) > shops.(id)
+Ref: shop_memberships.(shop_id) > shops.(id)
+
+// Catalogue
+Ref: categories.(shop_id, parent_id) > categories.(shop_id, id)
+Ref: products.(shop_id, category_id) > categories.(shop_id, id)
+Ref: products.(shop_id, brand_id) > brands.(shop_id, id)
+Ref: product_variants.(shop_id, product_id) > products.(shop_id, id)
+
+// Stock
+Ref: stock_levels.(shop_id, store_id) > stores.(shop_id, id)
+Ref: stock_levels.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: batches.(shop_id, store_id) > stores.(shop_id, id)
+Ref: batches.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: batches.(shop_id, parent_batch_id) > batches.(shop_id, id)
+Ref: serials.(shop_id, store_id) > stores.(shop_id, id)
+Ref: serials.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: serials.(shop_id, purchase_line_id) > purchase_lines.(shop_id, id)
+Ref: serials.(shop_id, current_sale_id) > serial_sales.(shop_id, id)
+Ref: serial_sales.(shop_id, serial_id) > serials.(shop_id, id)
+Ref: serial_sales.(shop_id, invoice_line_id) > invoice_lines.(shop_id, id)
+Ref: serial_sales.(shop_id, replaces_serial_sale_id) > serial_sales.(shop_id, id)
+Ref: serial_sales.(shop_id, returned_by_credit_note_line_id) > credit_note_lines.(shop_id, id)
+Ref: stock_movements.(shop_id, store_id) > stores.(shop_id, id)
+Ref: stock_movements.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: stock_movements.(shop_id, store_id, variant_id, batch_id) > batches.(shop_id, store_id, variant_id, id)
+Ref: stock_movements.(shop_id, variant_id, serial_id) > serials.(shop_id, variant_id, id)
+Ref: stock_transfers.(shop_id, from_store_id) > stores.(shop_id, id)
+Ref: stock_transfers.(shop_id, to_store_id) > stores.(shop_id, id)
+Ref: stock_transfer_lines.(shop_id, transfer_id) > stock_transfers.(shop_id, id)
+Ref: stock_transfer_lines.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: stock_transfer_lines.(shop_id, from_batch_id) > batches.(shop_id, id)
+Ref: stock_transfer_lines.(shop_id, to_batch_id) > batches.(shop_id, id)
+Ref: stock_transfer_lines.(shop_id, variant_id, serial_id) > serials.(shop_id, variant_id, id)
+Ref: stock_adjustments.(shop_id, store_id) > stores.(shop_id, id)
+Ref: stock_adjustments.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: stock_adjustments.(shop_id, store_id, variant_id, batch_id) > batches.(shop_id, store_id, variant_id, id)
+
+// Parties and price lists
+Ref: price_list_items.(shop_id, price_list_id) > price_lists.(shop_id, id)
+Ref: price_list_items.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: parties.(shop_id, price_list_id) > price_lists.(shop_id, id)
+
+// Documents
+Ref: purchases.(shop_id, store_id) > stores.(shop_id, id)
+Ref: purchases.(shop_id, supplier_id) > parties.(shop_id, id)
+Ref: purchase_lines.(shop_id, purchase_id) > purchases.(shop_id, id)
+Ref: purchase_lines.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: quotations.(shop_id, customer_id) > parties.(shop_id, id)
+Ref: quotation_lines.(shop_id, quotation_id) > quotations.(shop_id, id)
+Ref: quotation_lines.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: invoices.(shop_id, store_id) > stores.(shop_id, id)
+Ref: invoices.(shop_id, customer_id) > parties.(shop_id, id)
+Ref: invoices.(shop_id, quotation_id) > quotations.(shop_id, id)
+Ref: invoice_lines.(shop_id, invoice_id) > invoices.(shop_id, id)
+Ref: invoice_lines.(shop_id, variant_id) > product_variants.(shop_id, id)
+Ref: credit_notes.(shop_id, store_id) > stores.(shop_id, id)
+Ref: credit_notes.(shop_id, invoice_id) > invoices.(shop_id, id)
+Ref: credit_note_lines.(shop_id, credit_note_id) > credit_notes.(shop_id, id)
+Ref: credit_note_lines.(shop_id, invoice_line_id) > invoice_lines.(shop_id, id)
+Ref: credit_note_lines.(shop_id, restock_store_id) > stores.(shop_id, id)
+Ref: credit_note_lines.(shop_id, batch_id) > batches.(shop_id, id)
+Ref: credit_note_lines.(shop_id, serial_id) > serials.(shop_id, id)
+
+// Money owed, warranty, audit
+Ref: payments.(shop_id, party_id) > parties.(shop_id, id)
+Ref: payment_allocations.(shop_id, payment_id) > payments.(shop_id, id)
+Ref: payment_allocations.(shop_id, invoice_id) > invoices.(shop_id, id)
+Ref: payment_allocations.(shop_id, purchase_id) > purchases.(shop_id, id)
+Ref: party_ledger.(shop_id, party_id) > parties.(shop_id, id)
+Ref: warranty_claims.(shop_id, serial_id) > serials.(shop_id, id)
+Ref: warranty_claims.(shop_id, serial_sale_id) > serial_sales.(shop_id, id)
+Ref: warranty_claims.(shop_id, customer_id) > parties.(shop_id, id)
+Ref: warranty_claims.(shop_id, replacement_serial_id) > serials.(shop_id, id)
+Ref: warranty_claim_events.(shop_id, claim_id) > warranty_claims.(shop_id, id)
+
+// Staff references: only members of the same shop
+Ref: stock_movements.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: stock_transfers.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: stock_adjustments.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: stock_adjustments.(shop_id, approved_by) > shop_memberships.(shop_id, user_id)
+Ref: purchases.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: quotations.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: invoices.(shop_id, issued_by) > shop_memberships.(shop_id, user_id)
+Ref: invoices.(shop_id, cancelled_by) > shop_memberships.(shop_id, user_id)
+Ref: invoice_lines.(shop_id, discount_approved_by) > shop_memberships.(shop_id, user_id)
+Ref: credit_notes.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: payments.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: warranty_claims.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: warranty_claim_events.(shop_id, created_by) > shop_memberships.(shop_id, user_id)
+Ref: audit_logs.(shop_id, user_id) > shop_memberships.(shop_id, user_id)
+Ref: audit_logs.(shop_id, approved_by_user_id) > shop_memberships.(shop_id, user_id)
