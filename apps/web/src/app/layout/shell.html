@@ -1,0 +1,91 @@
+<ng-container *transloco="let t">
+  <a class="skip-link" href="#main">{{ t('a11y.skipToContent') }}</a>
+
+  <mat-toolbar class="app-toolbar">
+    @if (isHandset()) {
+      <button
+        mat-icon-button
+        (click)="drawerOpen.set(!drawerOpen())"
+        [attr.aria-label]="t('a11y.openMenu')"
+        [attr.aria-expanded]="drawerOpen()"
+      >
+        <mat-icon fontSet="material-symbols-outlined">menu</mat-icon>
+      </button>
+    }
+    <span class="brand">
+      <mat-icon fontSet="material-symbols-outlined" class="brand-mark" aria-hidden="true"
+        >bolt</mat-icon
+      >
+      <span class="brand-name">{{ t('app.name') }}</span>
+    </span>
+
+    <span class="flex-spacer"></span>
+
+    @if (!pwa.online()) {
+      <span class="offline-chip" role="status">
+        <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">cloud_off</mat-icon>
+        <span class="d-none d-sm-inline">{{ t('pwa.offline') }}</span>
+      </span>
+    }
+
+    <button
+      mat-button
+      class="lang-toggle"
+      (click)="language.toggle()"
+      [matTooltip]="t('a11y.switchLanguage')"
+      [attr.aria-label]="t('a11y.switchLanguage')"
+    >
+      {{ language.current() === 'en' ? 'हिं' : 'EN' }}
+    </button>
+
+    <button mat-icon-button [matMenuTriggerFor]="userMenu" [attr.aria-label]="t('a11y.account')">
+      <mat-icon fontSet="material-symbols-outlined">account_circle</mat-icon>
+    </button>
+    <mat-menu #userMenu="matMenu" xPosition="before">
+      <a mat-menu-item routerLink="/settings">
+        <mat-icon fontSet="material-symbols-outlined">settings</mat-icon>
+        <span>{{ t('nav.settings') }}</span>
+      </a>
+      <a mat-menu-item routerLink="/login">
+        <mat-icon fontSet="material-symbols-outlined">logout</mat-icon>
+        <span>{{ t('auth.logout') }}</span>
+      </a>
+    </mat-menu>
+  </mat-toolbar>
+
+  @if (!pwa.online()) {
+    <div class="offline-banner" role="alert">{{ t('pwa.offlineDetail') }}</div>
+  }
+
+  <mat-sidenav-container class="app-container">
+    <mat-sidenav
+      class="app-sidenav"
+      [mode]="sidenavMode()"
+      [opened]="sidenavOpened()"
+      (closedStart)="drawerOpen.set(false)"
+    >
+      <mat-nav-list>
+        @for (item of navItems; track item.route) {
+          <a
+            mat-list-item
+            [routerLink]="item.route"
+            routerLinkActive
+            #rla="routerLinkActive"
+            [activated]="rla.isActive"
+            [attr.aria-current]="rla.isActive ? 'page' : null"
+            (click)="closeDrawerOnHandset()"
+          >
+            <mat-icon matListItemIcon fontSet="material-symbols-outlined">{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ t(item.labelKey) }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <main id="main" class="app-main" tabindex="-1">
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</ng-container>

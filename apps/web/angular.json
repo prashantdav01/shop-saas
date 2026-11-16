@@ -29,15 +29,26 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap-grid.min.css",
+              "node_modules/bootstrap/dist/css/bootstrap-utilities.min.css",
+              "node_modules/@fontsource/noto-sans/400.css",
+              "node_modules/@fontsource/noto-sans/500.css",
+              "node_modules/@fontsource/noto-sans/700.css",
+              "node_modules/@fontsource/noto-sans-devanagari/400.css",
+              "node_modules/@fontsource/noto-sans-devanagari/500.css",
+              "node_modules/@fontsource/noto-sans-devanagari/700.css",
+              "node_modules/material-symbols/outlined.css",
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "850kB",
+                  "maximumError": "1.2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -45,7 +56,8 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "serviceWorker": "ngsw-config.json"
             },
             "development": {
               "optimization": false,

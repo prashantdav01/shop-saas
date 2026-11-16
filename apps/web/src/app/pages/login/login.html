@@ -1,0 +1,73 @@
+<ng-container *transloco="let t">
+  <div class="login-page">
+    <section class="login-card surface-card" aria-labelledby="login-title">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="brand">
+          <mat-icon fontSet="material-symbols-outlined" class="brand-mark" aria-hidden="true"
+            >bolt</mat-icon
+          >
+          {{ t('app.name') }}
+        </span>
+        <button mat-button (click)="language.toggle()" [attr.aria-label]="t('a11y.switchLanguage')">
+          {{ language.current() === 'en' ? 'हिंदी' : 'English' }}
+        </button>
+      </div>
+
+      <h1 id="login-title" class="page-title">{{ t('auth.title') }}</h1>
+      <p class="page-subtitle mb-4">{{ t('auth.subtitle') }}</p>
+
+      @if (step() === 'phone') {
+        <form (ngSubmit)="sendOtp()" novalidate>
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>{{ t('auth.mobile') }}</mat-label>
+            <span matTextPrefix>+91&nbsp;</span>
+            <input
+              matInput
+              [formControl]="phone"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel-national"
+              maxlength="10"
+              autofocus
+            />
+            @if (phone.touched && phone.invalid) {
+              <mat-error>{{ t('auth.mobileInvalid') }}</mat-error>
+            }
+          </mat-form-field>
+          <button mat-flat-button type="submit" class="w-100 big-button">
+            {{ t('auth.sendOtp') }}
+          </button>
+        </form>
+      } @else {
+        <form (ngSubmit)="verify()" novalidate>
+          <p class="mb-3">
+            {{ t('auth.otpSentTo', { mobile: '+91 ' + phone.value }) }}
+            <button mat-button type="button" (click)="changeNumber()">
+              {{ t('auth.change') }}
+            </button>
+          </p>
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>{{ t('auth.otp') }}</mat-label>
+            <input
+              matInput
+              [formControl]="otp"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              autofocus
+            />
+            @if (otp.touched && otp.invalid) {
+              <mat-error>{{ t('auth.otpInvalid') }}</mat-error>
+            }
+          </mat-form-field>
+          <button mat-flat-button type="submit" class="w-100 big-button">
+            {{ t('auth.verify') }}
+          </button>
+        </form>
+      }
+
+      <p class="demo-note mt-4 mb-0">{{ t('auth.demoNote') }}</p>
+    </section>
+  </div>
+</ng-container>

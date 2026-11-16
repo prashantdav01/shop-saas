@@ -1,0 +1,42 @@
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      color-mix(in srgb, var(--mat-sys-tertiary) 18%, transparent),
+      transparent 40%
+    ),
+    var(--mat-sys-surface-container-low);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  box-shadow: var(--mat-sys-level2);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--mat-sys-title-large);
+  color: var(--mat-sys-primary);
+}
+
+.brand-mark {
+  color: var(--mat-sys-tertiary);
+}
+
+.big-button {
+  height: 48px;
+  font: var(--mat-sys-title-medium);
+}
+
+.demo-note {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}

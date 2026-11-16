@@ -1,0 +1,57 @@
+{
+  "app": { "name": "Dukaan" },
+  "a11y": {
+    "skipToContent": "Skip to content",
+    "openMenu": "Open menu",
+    "switchLanguage": "Switch language",
+    "account": "Account"
+  },
+  "nav": {
+    "home": "Home",
+    "billing": "Billing",
+    "stock": "Stock",
+    "purchases": "Purchases",
+    "parties": "Customers & suppliers",
+    "warranty": "Warranty",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Namaste!",
+    "subtitle": "What would you like to do?",
+    "newBill": "New bill",
+    "newBillHint": "Scan or search items and print",
+    "stock": "Stock",
+    "stockHint": "Items, coils and serial numbers",
+    "purchase": "Purchase entry",
+    "purchaseHint": "Enter a supplier's bill",
+    "warranty": "Warranty lookup",
+    "warrantyHint": "Find a sold unit by serial or phone"
+  },
+  "auth": {
+    "title": "Log in",
+    "subtitle": "Use your mobile number. We'll send a one-time code.",
+    "mobile": "Mobile number",
+    "mobileInvalid": "Enter a 10-digit mobile number",
+    "sendOtp": "Send code",
+    "otpSentTo": "Code sent to {{mobile}}",
+    "change": "Change",
+    "otp": "6-digit code",
+    "otpInvalid": "Enter the 6-digit code",
+    "verify": "Log in",
+    "logout": "Log out",
+    "demoNote": "Preview only: no code is sent yet. Real login comes in the next phase."
+  },
+  "pwa": {
+    "offline": "Offline",
+    "offlineDetail": "No internet. You can look around, but bills and stock changes need a connection.",
+    "updateReady": "A new version is ready.",
+    "reload": "Reload"
+  },
+  "common": { "comingSoon": "This screen is coming soon." },
+  "notFound": {
+    "title": "Page not found",
+    "detail": "This page doesn't exist or has moved.",
+    "goHome": "Go to Home"
+  }
+}
