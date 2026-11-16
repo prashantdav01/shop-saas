@@ -1,29 +1,21 @@
-// Local and CI only: creates the API's LOGIN role from DATABASE_URL and grants it
-// app_user. Hosted environments create their login role by hand (Prashant).
-// Usage (from repo root): pnpm db:setup-app-role   (after pnpm db:migrate)
-import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Local and CI only: creates the API's LOGIN role named in DATABASE_URL and makes
+// it a member of app_user. Run after pnpm db:migrate. Hosted environments create
+// their login role by hand (Prashant), see docs/DATABASE.md.
+//
+// Safety: refuses unless both URLs are local (or CI=true), and refuses to touch an
+// existing role that has superuser, BYPASSRLS or CREATEROLE.
 import pg from 'pg';
+import {
+  describeTarget,
+  loadLocalEnv,
+  requireEnv,
+  requireLocalOrCi,
+} from './local-guard.mts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const envFile = resolve(here, '../../../.env');
-if (existsSync(envFile)) process.loadEnvFile(envFile);
-
-if (
-  process.env.NODE_ENV === 'production' ||
-  process.env.NODE_ENV === 'staging'
-) {
-  console.error('Refusing to run outside local or CI.');
-  process.exit(1);
-}
-
-const ownerUrl = process.env.MIGRATION_DATABASE_URL;
-const appUrl = process.env.DATABASE_URL;
-if (!ownerUrl || !appUrl) {
-  console.error('MIGRATION_DATABASE_URL and DATABASE_URL must both be set.');
-  process.exit(1);
-}
+loadLocalEnv();
+const ownerUrl = requireEnv('MIGRATION_DATABASE_URL');
+const appUrl = requireEnv('DATABASE_URL');
+requireLocalOrCi(ownerUrl, appUrl);
 
 const app = new URL(appUrl);
 const user = decodeURIComponent(app.username);
@@ -46,16 +38,32 @@ await client.connect();
 try {
   const ident = client.escapeIdentifier(user);
   const secret = client.escapeLiteral(password);
-  const exists = await client.query(
-    'SELECT 1 FROM pg_roles WHERE rolname = $1',
+  const { rows } = await client.query<{
+    rolsuper: boolean;
+    rolbypassrls: boolean;
+    rolcreaterole: boolean;
+  }>(
+    'SELECT rolsuper, rolbypassrls, rolcreaterole FROM pg_roles WHERE rolname = $1',
     [user],
   );
-  const verb = exists.rowCount ? 'ALTER' : 'CREATE';
+  const existing = rows[0];
+  if (
+    existing &&
+    (existing.rolsuper || existing.rolbypassrls || existing.rolcreaterole)
+  ) {
+    console.error(
+      `Refusing: role ${user} already exists with admin powers; not changing it.`,
+    );
+    process.exit(1);
+  }
+  const verb = existing ? 'ALTER' : 'CREATE';
+  // Local and CI throwaway password. Note: Postgres may log this statement if
+  // log_statement is 'ddl' or 'all'. Never reuse this pattern for hosted roles.
   await client.query(
     `${verb} ROLE ${ident} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD ${secret}`,
   );
   await client.query(`GRANT app_user TO ${ident}`);
-  console.log(`App role ${user} ready.`);
+  console.log(`App role ready: ${describeTarget(appUrl)}`);
 } finally {
   await client.end();
 }

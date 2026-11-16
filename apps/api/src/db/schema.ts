@@ -45,9 +45,8 @@ export const shops = pgTable(
     stateCode: char('state_code', { length: 2 }).notNull(),
     turnoverBand: text('turnover_band').notNull(),
     preset: text('preset').notNull(),
-    subscriptionStatus: text('subscription_status')
-      .notNull()
-      .default('trialing'),
+    // No default: app_create_shop() sets 'trialing'; billing changes it later.
+    subscriptionStatus: text('subscription_status').notNull(),
     modBatchTracking: boolean('mod_batch_tracking').notNull().default(false),
     modSerialTracking: boolean('mod_serial_tracking').notNull().default(false),
     modDecimalQty: boolean('mod_decimal_qty').notNull().default(false),

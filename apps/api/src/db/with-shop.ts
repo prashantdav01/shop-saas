@@ -23,6 +23,15 @@ export async function withShop<T>(
   }
   return db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.shop_id', ${shopId}, true)`);
-    return work(tx);
+    const result = await work(tx);
+    // If anything inside `work` changed the setting, fail and roll back rather
+    // than commit writes made under another shop.
+    const check = await tx.execute<{ shop_id: string | null }>(
+      sql`select nullif(current_setting('app.shop_id', true), '') as shop_id`,
+    );
+    if (check.rows[0]?.shop_id !== shopId) {
+      throw new Error('withShop: app.shop_id changed inside the transaction');
+    }
+    return result;
   });
 }

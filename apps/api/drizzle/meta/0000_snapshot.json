@@ -1,5 +1,5 @@
 {
-  "id": "4123cee2-b9fa-4696-af1f-8d8e0a3ba7a2",
+  "id": "ab62415b-9f5c-4f03-a43d-b6a3afed0ebf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -113,8 +113,7 @@
           "name": "subscription_status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'trialing'"
+          "notNull": true
         },
         "mod_batch_tracking": {
           "name": "mod_batch_tracking",

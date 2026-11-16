@@ -16,7 +16,7 @@ CREATE TABLE "shops" (
 	"state_code" char(2) NOT NULL,
 	"turnover_band" text NOT NULL,
 	"preset" text NOT NULL,
-	"subscription_status" text DEFAULT 'trialing' NOT NULL,
+	"subscription_status" text NOT NULL,
 	"mod_batch_tracking" boolean DEFAULT false NOT NULL,
 	"mod_serial_tracking" boolean DEFAULT false NOT NULL,
 	"mod_decimal_qty" boolean DEFAULT false NOT NULL,

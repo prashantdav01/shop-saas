@@ -1,6 +1,6 @@
 {
-  "id": "c27e0b4d-0fe9-4d7f-9be7-a4b33016835c",
-  "prevId": "4123cee2-b9fa-4696-af1f-8d8e0a3ba7a2",
+  "id": "826dfcfa-79ee-4e7b-8d07-781be2df9f66",
+  "prevId": "ab62415b-9f5c-4f03-a43d-b6a3afed0ebf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -113,8 +113,7 @@
           "name": "subscription_status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'trialing'"
+          "notNull": true
         },
         "mod_batch_tracking": {
           "name": "mod_batch_tracking",
