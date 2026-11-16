@@ -25,7 +25,8 @@ Never edit CLAUDE.md by hand: it is generated.
 
 - Money is integer paise. Quantities are NUMERIC(14,3). Never use floating point for either.
 - Never update a stock quantity directly. Insert a `stock_movements` row and update the cached `on_hand` in the same transaction.
-- Every tenant table has `tenant_id`. Every query is scoped to the current tenant. RLS policies on all tenant tables.
+- The tenant is the shop. Every shop-owned table has `shop_id` and `UNIQUE (shop_id, id)`; references between them are composite `(shop_id, x_id)` foreign keys. Every query is scoped to the current shop. RLS (`ENABLE` and `FORCE`) on every shop-owned table, using `current_setting('app.shop_id', true)`. The API connects as a role without superuser or `BYPASSRLS`.
+- The schema design is docs/schema.dbml; read docs/SCHEMA_NOTES.md before adding a table.
 - Issued bills are immutable. Cancel with a reason or issue a credit note.
 - Freeze price, MRP and tax rate on each document line at the time of sale.
 - Store timestamps in UTC, show them in IST. Show dates as DD/MM/YYYY. Format amounts with ₹ and lakh/crore grouping through the shared helper only.
@@ -37,7 +38,7 @@ Never edit CLAUDE.md by hand: it is generated.
 - Wire is stored in metres (base unit). A coil is a batch row with its remaining metres.
 - A sale draws from the open coil first, then the next. A coil never goes below zero.
 - Serial-tracked items have one `serials` row per unit, with status `in_stock`, `sold`, `returned` or `in_service`. A serial can be sold only from `in_stock`.
-- Warranty end = invoice date + the item's warranty months, computed once and stored on the serial row.
+- Warranty end = invoice date (IST) + the item's warranty months, computed once per sale and stored on that sale's `serial_sales` row. Brand and shop warranty are stored separately.
 - Prices come from the customer's price list, falling back to the item's list price.
 - Each role has a maximum discount. A discount above it needs a manager PIN. Warn when price is below cost.
 - Quotations move no stock and use their own number series.

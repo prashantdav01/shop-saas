@@ -33,6 +33,21 @@ The schema lives in [schema.dbml](schema.dbml). It is a design, not a migration:
 | Uniqueness | None | SKU, barcode, serial per variant, batch code, supplier bill number, document numbers | Stops duplicates at the database |
 | Shop | | `turnover_band`, `allow_negative_stock`, `mrp_policy` | HSN length, negative stock setting, MRP warn or block |
 
+## Changes from the fresh-context review (2026-11-13)
+
+| # | Severity | Finding | Fix in schema.dbml |
+| --- | --- | --- | --- |
+| 1 | High | Composite tenant keys were promised but every ref was single-column | `UNIQUE (shop_id, id)` everywhere; section 7 lists all binding composite FKs; a test will fail on any non-composite shop reference |
+| 2 | High | Staff references pointed at global `users`, so a manager from another shop could approve | Staff columns reference `shop_memberships (shop_id, user_id)`; API checks active membership and role |
+| 3 | Medium | `tenant_id` / `app.tenant_id` vs `shop_id` / `app.shop_id` mismatch | Standardised on `shop_id` and `app.shop_id` in RULES.md and DECISIONS.md; missing setting matches no rows |
+| 4 | High | Coils could be cut from another store or variant; batch totals could drift; several open coils | Batch FKs include store and variant; one open coil per variant per store; transfers split batches; reconciliation tests; negative-stock check in the same transaction |
+| 5 | Medium | Financial year and date could come from UTC; numbers not tied to the series | `invoice_date` in IST, year CHECK, `seq_no` with unique index; same for quotations and credit notes |
+| 6 | Medium | Re-selling a serial overwrote the first sale and its warranty | New `serial_sales` table, one row per sale; claims point at the sale |
+| 7 | Medium | Credit notes could over-return and could not restock coils or serials | Per-line tax split, batch, serial, restock store; over-return check under lock |
+| 8 | Medium | Seller GSTIN and states not frozen; CGST/SGST and IGST could both be set | Seller and buyer details frozen on invoices; CHECKs on the tax split; template-to-tax CHECK after CA confirms |
+| 9 | Medium | Party ledger could double-post; credit to walk-ins; no payment allocation | Unique source per ledger entry; credit requires a customer; `payment_allocations`; `credit_allowed` plus nullable limit |
+| 10 | Low | Several default price lists; PIN-only overrides ambiguous | One default list per shop; overrides ask for the manager and their PIN |
+
 ## Open questions (answer from shop visits or a CA)
 
 1. Invoice number format and prefix per financial year: confirm with a CA.
@@ -40,6 +55,7 @@ The schema lives in [schema.dbml](schema.dbml). It is a design, not a migration:
 3. Do shops sell loose wire without an MRP? `mrp_paise` is nullable for that.
 4. Mixed payment on one bill (part cash, part UPI): kept as `payment_mode = mixed` plus `payments` rows; confirm it is common.
 5. Purchase returns to suppliers: on the later list unless shops ask.
+6. Warranty on a replacement unit: does it continue the original end date or start fresh? Shop or brand policy.
 
 ## Rules applied at build time, not visible in DBML
 
