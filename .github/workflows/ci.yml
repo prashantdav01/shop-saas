@@ -52,7 +52,9 @@ jobs:
     env:
       # Throwaway CI-only values for the service containers above; not secrets.
       NODE_ENV: test
-      DATABASE_URL: postgres://shop:shop_ci_only@localhost:5432/shop
+      # API connects as a restricted role; migrations run as the owner.
+      DATABASE_URL: postgres://shop_app:shop_app_ci_only@localhost:5432/shop
+      MIGRATION_DATABASE_URL: postgres://shop:shop_ci_only@localhost:5432/shop
       REDIS_URL: redis://localhost:6379
       LOG_LEVEL: error
     steps:
@@ -63,5 +65,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Skips cleanly until the test:e2e script exists on the branch.
-      - run: pnpm run --if-present test:e2e
+      - run: pnpm db:migrate
+      - run: pnpm db:setup-app-role
+      - run: pnpm test:e2e
+      # Migrations must match the schema: fails if someone edited schema.ts
+      # without generating a migration.
+      - run: pnpm --filter api exec drizzle-kit check
+      - run: |
+          pnpm --filter api exec drizzle-kit generate --name ci_drift_check
+          if [ -n "$(git status --porcelain apps/api/drizzle)" ]; then
+            echo "src/db/schema.ts has changes with no migration. Run pnpm db:generate."
+            git status --porcelain apps/api/drizzle
+            exit 1
+          fi
