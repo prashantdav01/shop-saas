@@ -3,7 +3,13 @@
  * belongs to is its date in IST (UTC+05:30, no daylight saving).
  * A business date is an ISO string 'YYYY-MM-DD' (no time, no zone).
  */
+import { MAX_INPUT_LENGTH, show } from './internal.js';
+
 export type IsoDate = string;
+
+/** Business dates outside these years are rejected as typing mistakes or junk. */
+export const MIN_YEAR = 1900;
+export const MAX_YEAR = 2199;
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -17,12 +23,15 @@ export class DateError extends Error {
 
 function parts(date: IsoDate): { y: number; m: number; d: number } {
   const match = ISO_DATE.exec(date);
-  if (!match) throw new DateError(`not a YYYY-MM-DD date: "${date}"`);
+  if (!match) throw new DateError(`not a YYYY-MM-DD date: ${show(date)}`);
   const y = Number(match[1]);
   const m = Number(match[2]);
   const d = Number(match[3]);
+  if (y < MIN_YEAR || y > MAX_YEAR) {
+    throw new DateError(`year must be ${MIN_YEAR} to ${MAX_YEAR}: ${show(date)}`);
+  }
   if (m < 1 || m > 12 || d < 1 || d > daysInMonth(y, m)) {
-    throw new DateError(`no such date: "${date}"`);
+    throw new DateError(`no such date: ${show(date)}`);
   }
   return { y, m, d };
 }
@@ -60,8 +69,9 @@ export function formatDateTimeIn(moment: Date): string {
 
 /** Parses 'DD/MM/YYYY' as typed by a person. */
 export function parseDateIn(input: string): IsoDate {
+  if (input.length > MAX_INPUT_LENGTH) throw new DateError(`date too long: ${show(input)}`);
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(input.trim());
-  if (!match) throw new DateError(`not a DD/MM/YYYY date: "${input}"`);
+  if (!match) throw new DateError(`not a DD/MM/YYYY date: ${show(input)}`);
   const iso = `${match[3]}-${pad(Number(match[2]))}-${pad(Number(match[1]))}`;
   parts(iso);
   return iso;
@@ -78,10 +88,13 @@ export function financialYear(date: IsoDate): string {
 export function financialYearBounds(fy: string): { start: IsoDate; end: IsoDate } {
   const match = /^(\d{4})-(\d{2})$/.exec(fy);
   if (!match || (Number(match[1]) + 1) % 100 !== Number(match[2])) {
-    throw new DateError(`not a financial year like "2026-27": "${fy}"`);
+    throw new DateError(`not a financial year like "2026-27": ${show(fy)}`);
   }
   const start = Number(match[1]);
-  return { start: `${start}-04-01`, end: `${start + 1}-03-31` };
+  const bounds = { start: `${start}-04-01`, end: `${start + 1}-03-31` };
+  parts(bounds.start);
+  parts(bounds.end);
+  return bounds;
 }
 
 /**
@@ -92,13 +105,20 @@ export function financialYearBounds(fy: string): { start: IsoDate; end: IsoDate 
  * before is brand or shop policy; confirm in shop visits.
  */
 export function addMonths(date: IsoDate, months: number): IsoDate {
-  if (!Number.isSafeInteger(months)) throw new DateError('months must be an integer');
+  if (!Number.isSafeInteger(months) || Math.abs(months) > MAX_MONTHS) {
+    throw new DateError(`months must be a whole number within ±${MAX_MONTHS}`);
+  }
   const { y, m, d } = parts(date);
   const index = y * 12 + (m - 1) + months;
   const ny = Math.floor(index / 12);
   const nm = (index % 12) + 1;
-  return `${pad(ny, 4)}-${pad(nm)}-${pad(Math.min(d, daysInMonth(ny, nm)))}`;
+  const result = `${pad(ny, 4)}-${pad(nm)}-${pad(Math.min(d, daysInMonth(ny, nm)))}`;
+  parts(result); // stays within MIN_YEAR..MAX_YEAR
+  return result;
 }
+
+/** 100 years; longer warranties are typing mistakes. */
+export const MAX_MONTHS = 1200;
 
 /** Compares two ISO dates: negative, zero or positive. */
 export function compareDates(a: IsoDate, b: IsoDate): number {

@@ -83,6 +83,31 @@ describe('addMonths (warranty end)', () => {
     expect(() => addMonths('2026-01-01', 1.5)).toThrow(DateError);
     expect(() => addMonths('2026-02-30', 1)).toThrow(DateError);
   });
+
+  it('crosses a year boundary backwards', () => {
+    expect(addMonths('2026-01-31', -2)).toBe('2025-11-30');
+  });
+
+  it('rejects absurd month counts and results outside 1900-2199', () => {
+    expect(() => addMonths('2026-01-01', 9e15)).toThrow(DateError);
+    expect(() => addMonths('2026-01-01', 1201)).toThrow(DateError);
+    expect(() => addMonths('2190-01-01', 120)).toThrow(DateError);
+  });
+});
+
+describe('year range', () => {
+  it.each(['0000-01-01', '1899-12-31', '2200-01-01'])('rejects %s', (date) => {
+    expect(() => financialYear(date)).toThrow(DateError);
+  });
+
+  it('rejects typed years outside the range and over-long input', () => {
+    expect(() => parseDateIn('01/01/0001')).toThrow(DateError);
+    expect(() => parseDateIn('1'.repeat(1000))).toThrow(/too long/);
+  });
+
+  it('rejects financial year bounds outside the range', () => {
+    expect(() => financialYearBounds('2199-00')).toThrow(DateError);
+  });
 });
 
 describe('compareDates', () => {

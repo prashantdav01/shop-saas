@@ -15,14 +15,26 @@ describe('parseQty / formatQty', () => {
     ['2.5', 2500],
     ['90', 90000],
     ['0.001', 1],
-    ['-0.125', -125],
     ['2.500', 2500],
   ])('%s -> %i', (input, milli) => {
     expect(parseQty(input)).toBe(milli);
   });
 
-  it.each(['', '1.2345', 'abc', '1,000', '.5'])('rejects "%s"', (input) => {
+  it.each(['', '1.2345', 'abc', '1,000', '.5', '+5', '123456789012'])('rejects "%s"', (input) => {
     expect(() => parseQty(input)).toThrow(QuantityError);
+  });
+
+  it('rejects negative quantities unless allowed (returns, adjustments)', () => {
+    expect(() => parseQty('-5')).toThrow(/negative/);
+    expect(parseQty('-0.125', { allowNegative: true })).toBe(-125);
+  });
+
+  it('never returns -0', () => {
+    expect(Object.is(parseQty('-0', { allowNegative: true }), 0)).toBe(true);
+  });
+
+  it('rejects very long input before parsing it', () => {
+    expect(() => parseQty('1'.repeat(100_000))).toThrow(/too long/);
   });
 
   it('rejects values beyond NUMERIC(14,3)', () => {
@@ -50,6 +62,11 @@ describe('arithmetic without floating point', () => {
     expect(addQty(parseQty('0.1'), parseQty('0.2'))).toBe(parseQty('0.3'));
   });
 
+  it('refuses fractional or out-of-range inputs to addQty', () => {
+    expect(() => addQty(0.5, 0.5)).toThrow(QuantityError);
+    expect(() => addQty(1e20, -1e20)).toThrow(QuantityError);
+  });
+
   it('multiplies and rounds half away from zero at 3 decimals', () => {
     expect(mulQty(1500, 90125)).toBe(135188); // 1.5 × 90.125 = 135.1875
     expect(mulQty(2000, 90000)).toBe(180000);
@@ -59,7 +76,13 @@ describe('arithmetic without floating point', () => {
   it('computes a line amount in paise', () => {
     expect(lineAmountPaise(2500, 4000)).toBe(10000); // 2.5 m × ₹40.00
     expect(lineAmountPaise(333, 1000)).toBe(333); // 0.333 m × ₹10.00 = ₹3.33
-    expect(lineAmountPaise(1, 1)).toBe(0); // 0.001 × 1 paisa rounds to 0
+    expect(lineAmountPaise(0, 4000)).toBe(0);
+    expect(lineAmountPaise(2500, 0)).toBe(0); // free item, priced at zero on purpose
+  });
+
+  it('refuses a line that would round to ₹0 (goods for free)', () => {
+    expect(() => lineAmountPaise(1, 499)).toThrow(/rounds to zero/); // 0.001 × 4.99 paise
+    expect(lineAmountPaise(1, 500)).toBe(1); // 0.5 paise rounds up to 1
   });
 });
 
@@ -122,6 +145,24 @@ describe('planCoilDraw', () => {
         expect(d.qty).toBeLessThanOrEqual(coils.find((c) => c.id === d.coilId)!.remaining);
       }
     }
+  });
+
+  it('refuses a coil listed twice (would take it below zero)', () => {
+    expect(() =>
+      planCoilDraw(4000, [
+        { id: 'a', remaining: 2000, isOpen: false },
+        { id: 'a', remaining: 2000, isOpen: false },
+      ]),
+    ).toThrow(/listed twice/);
+  });
+
+  it('validates every coil, even ones the sale would not reach', () => {
+    expect(() =>
+      planCoilDraw(100, [
+        { id: 'ok', remaining: 1000, isOpen: true },
+        { id: 'bad', remaining: -5, isOpen: false },
+      ]),
+    ).toThrow(/below zero/);
   });
 
   it('refuses zero or negative sales and two open coils', () => {

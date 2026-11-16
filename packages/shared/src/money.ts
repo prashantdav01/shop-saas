@@ -1,7 +1,13 @@
+import { bigDivRound, MAX_INPUT_LENGTH, show } from './internal.js';
+
 /**
  * Money is always an integer number of paise (1 rupee = 100 paise).
  * Never use floating point for money. JSON-safe `number`, checked to be a safe integer
  * (Postgres bigint columns arrive as strings; convert with toPaise()).
+ *
+ * These helpers check values, not business rules. The API must still enforce
+ * limits such as "price >= 0 on a sale line" and "discount within the role's limit",
+ * and turn MoneyError into a 400 response.
  */
 export type Paise = number;
 
@@ -14,32 +20,42 @@ export class MoneyError extends Error {
 
 export function assertPaise(value: number, label = 'amount'): asserts value is Paise {
   if (!Number.isSafeInteger(value)) {
-    throw new MoneyError(`${label} must be a whole number of paise, got ${value}`);
+    throw new MoneyError(`${label} must be a whole number of paise, got ${show(value)}`);
   }
+}
+
+function fromBig(value: bigint, label = 'amount'): Paise {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+    throw new MoneyError(`${label} out of range`);
+  }
+  return Number(value);
 }
 
 /** Converts a database bigint (string), number or bigint into Paise. */
 export function toPaise(value: string | number | bigint): Paise {
-  if (typeof value === 'bigint') {
-    if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
-      throw new MoneyError(`amount out of range: ${value}`);
-    }
-    return Number(value);
-  }
+  if (typeof value === 'bigint') return fromBig(value);
   if (typeof value === 'string') {
-    if (!/^-?\d+$/.test(value)) throw new MoneyError(`not a whole number of paise: "${value}"`);
-    return toPaise(BigInt(value));
+    if (!/^-?\d{1,19}$/.test(value)) {
+      throw new MoneyError(`not a whole number of paise: ${show(value)}`);
+    }
+    return fromBig(BigInt(value));
   }
   assertPaise(value);
   return value;
 }
 
-/** Groups digits the Indian way: 1234567 -> "12,34,567". */
+/** Groups digits the Indian way: 1234567 -> "12,34,567". Digits only. */
 export function groupIndian(digits: string): string {
+  if (!/^\d{1,20}$/.test(digits)) throw new MoneyError(`not a digit string: ${show(digits)}`);
   if (digits.length <= 3) return digits;
-  const last3 = digits.slice(-3);
-  const rest = digits.slice(0, -3);
-  return `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${last3}`;
+  const groups = [digits.slice(-3)];
+  let rest = digits.slice(0, -3);
+  while (rest.length > 2) {
+    groups.unshift(rest.slice(-2));
+    rest = rest.slice(0, -2);
+  }
+  groups.unshift(rest);
+  return groups.join(',');
 }
 
 export interface FormatInrOptions {
@@ -62,17 +78,40 @@ export function formatInr(paise: Paise, options: FormatInrOptions = {}): string 
   return `${negative ? '-' : ''}${symbol ? '₹' : ''}${body}`;
 }
 
+export interface ParseInrOptions {
+  /** Accept a leading minus. Default false: prices, payments and discounts are never negative. */
+  allowNegative?: boolean;
+}
+
+// Rupees: plain digits ("123456") or correct Indian grouping ("1,23,456").
+const RUPEES = String.raw`(\d{1,14}|\d{1,2}(?:,\d{2}){0,5},\d{3})`;
+const AMOUNT = new RegExp(String.raw`^(?:${RUPEES}(?:\.(\d{0,2}))?|\.(\d{1,2}))$`);
+
 /**
- * Parses what a person types into paise. Accepts "1234", "1,23,456.5", "₹ 99.99".
- * Rejects more than 2 decimal places, letters, and empty input.
+ * Parses what a person types into paise.
+ * Accepted: "1234", "1,23,456.5", "₹ 99.99", "₹99", ".5", "5.", "5.05".
+ * Rejected: commas in the wrong places ("12,34.5,6"), spaces inside the number
+ * ("1 2 3"), more than 2 decimals, letters, empty input, input over 32 characters,
+ * and a minus sign unless allowNegative is set.
  */
-export function parseInr(input: string): Paise {
-  const cleaned = input.replace(/[₹,\s]/g, '');
-  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
-  if (!match) throw new MoneyError(`not a valid amount: "${input}"`);
-  const [, sign, rupees, fraction = ''] = match;
-  const paise = BigInt(rupees!) * 100n + BigInt(fraction.padEnd(2, '0'));
-  return toPaise(sign === '-' ? -paise : paise);
+export function parseInr(input: string, options: ParseInrOptions = {}): Paise {
+  if (input.length > MAX_INPUT_LENGTH) throw new MoneyError(`amount too long: ${show(input)}`);
+  // Sign first, then an optional ₹: "-₹50.00" (as formatInr writes it) or "-50".
+  let rest = input.trim();
+  const negative = rest.startsWith('-');
+  if (negative) rest = rest.slice(1);
+  rest = rest.replace(/^₹\s*/, '');
+  const match = AMOUNT.exec(rest);
+  if (!match) throw new MoneyError(`not a valid amount: ${show(input)}`);
+  const [, rupees, fraction, onlyFraction] = match;
+  const sign = negative ? '-' : '';
+  if (negative && !options.allowNegative) {
+    throw new MoneyError(`negative amount not allowed: ${show(input)}`);
+  }
+  const rupeeDigits = (rupees ?? '0').replace(/,/g, '');
+  const paiseDigits = (fraction ?? onlyFraction ?? '').padEnd(2, '0');
+  const paise = BigInt(rupeeDigits) * 100n + BigInt(paiseDigits);
+  return fromBig(sign === '-' ? -paise : paise);
 }
 
 /**
@@ -83,25 +122,27 @@ export function divRound(numerator: number, denominator: number): number {
   if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator === 0) {
     throw new MoneyError('divRound needs safe integers and a non-zero denominator');
   }
-  const n = BigInt(numerator);
-  const d = BigInt(denominator);
-  const sign = n < 0n !== d < 0n ? -1n : 1n;
-  const an = n < 0n ? -n : n;
-  const ad = d < 0n ? -d : d;
-  const q = (an * 2n + ad) / (ad * 2n);
-  return Number(sign * q);
+  return Number(bigDivRound(BigInt(numerator), BigInt(denominator)));
 }
 
-/** A rate in basis points of an amount: applyBp(10000, 1800) = 1800 (18% of ₹100). */
+/**
+ * A rate in basis points of an amount: applyBp(10000, 1800) = 1800 (18% of ₹100).
+ * The rate must be 0..10000 (0% to 100%), which covers GST rates and discounts.
+ * Multiplies in BigInt, so it is exact for every safe paise amount.
+ */
 export function applyBp(paise: Paise, basisPoints: number): Paise {
   assertPaise(paise);
-  if (!Number.isSafeInteger(basisPoints)) throw new MoneyError('basis points must be an integer');
-  return divRound(paise * basisPoints, 10_000);
+  if (!Number.isSafeInteger(basisPoints) || basisPoints < 0 || basisPoints > 10_000) {
+    throw new MoneyError(`rate must be 0 to 10000 basis points, got ${show(basisPoints)}`);
+  }
+  return fromBig(bigDivRound(BigInt(paise) * BigInt(basisPoints), 10_000n));
 }
 
 /**
  * Rounds a bill total to the nearest rupee and returns the round-off line.
- * 50 paise rounds up. UNVERIFIED convention: a CA confirms before real bills.
+ * 50 paise rounds away from zero (₹123.50 -> ₹124; -₹123.50 -> -₹124).
+ * UNVERIFIED convention: a CA confirms before real bills, including whether GST
+ * is rounded per line or on the invoice total.
  */
 export function roundToRupee(paise: Paise): { total: Paise; roundOff: Paise } {
   assertPaise(paise);
