@@ -1,5 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,6 +30,17 @@ export class Login {
   private readonly router = inject(Router);
 
   protected readonly step = signal<'phone' | 'otp'>('phone');
+  private readonly phoneInput = viewChild<ElementRef<HTMLInputElement>>('phoneInput');
+  private readonly otpInput = viewChild<ElementRef<HTMLInputElement>>('otpInput');
+
+  constructor() {
+    // Keep keyboard focus in the right field on every step (keyboard-first rule).
+    // viewChild() is a signal, so this re-runs when the step's input appears.
+    effect(() => {
+      const input = this.step() === 'phone' ? this.phoneInput() : this.otpInput();
+      input?.nativeElement.focus();
+    });
+  }
   /** Indian mobile: 10 digits starting 6-9. */
   protected readonly phone = new FormControl('', {
     nonNullable: true,
@@ -39,6 +50,10 @@ export class Login {
     nonNullable: true,
     validators: [Validators.required, Validators.pattern(/^\d{6}$/)],
   });
+  // Each step's <form> binds a FormGroup so (ngSubmit) fires and the browser's
+  // own submit (a full page reload) is prevented.
+  protected readonly phoneForm = new FormGroup({ phone: this.phone });
+  protected readonly otpForm = new FormGroup({ otp: this.otp });
 
   protected sendOtp(): void {
     this.phone.markAsTouched();

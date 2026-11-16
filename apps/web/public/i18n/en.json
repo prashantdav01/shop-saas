@@ -1,9 +1,10 @@
 {
-  "app": { "name": "Dukaan" },
+  "app": {
+    "name": "Dukaan"
+  },
   "a11y": {
     "skipToContent": "Skip to content",
     "openMenu": "Open menu",
-    "switchLanguage": "Switch language",
     "account": "Account"
   },
   "nav": {
@@ -34,13 +35,13 @@
     "mobile": "Mobile number",
     "mobileInvalid": "Enter a 10-digit mobile number",
     "sendOtp": "Send code",
-    "otpSentTo": "Code sent to {{mobile}}",
+    "otpSentTo": "Preview: no code was sent to {{mobile}}. Type any 6 digits.",
     "change": "Change",
     "otp": "6-digit code",
     "otpInvalid": "Enter the 6-digit code",
     "verify": "Log in",
-    "logout": "Log out",
-    "demoNote": "Preview only: no code is sent yet. Real login comes in the next phase."
+    "demoNote": "Preview only. Login is not working yet: no code is sent and nothing is checked. Real login comes in the next phase.",
+    "exitPreview": "Exit preview"
   },
   "pwa": {
     "offline": "Offline",
@@ -48,10 +49,18 @@
     "updateReady": "A new version is ready.",
     "reload": "Reload"
   },
-  "common": { "comingSoon": "This screen is coming soon." },
+  "common": {
+    "comingSoon": "This screen is coming soon."
+  },
   "notFound": {
     "title": "Page not found",
     "detail": "This page doesn't exist or has moved.",
     "goHome": "Go to Home"
+  },
+  "lang": {
+    "otherShort": "हिं",
+    "otherFull": "हिंदी",
+    "otherCode": "hi",
+    "switchTo": "Switch to Hindi (हिंदी)"
   }
 }

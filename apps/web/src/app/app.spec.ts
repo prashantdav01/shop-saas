@@ -3,7 +3,9 @@ import { provideRouter, Router } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
 import en from '../../public/i18n/en.json';
 import hi from '../../public/i18n/hi.json';
+import angular from '../../angular.json';
 import { routes } from './app.routes';
+import { APP_ICONS } from './core/icons/icons';
 import { NAV_ITEMS } from './layout/nav-items';
 import { Login } from './pages/login/login';
 
@@ -52,6 +54,21 @@ describe('translations', () => {
     for (const item of NAV_ITEMS) {
       expect(lookup(en as Tree, item.labelKey), item.labelKey).toBeTruthy();
     }
+  });
+});
+
+describe('icons', () => {
+  it('every menu icon is registered (otherwise it shows blank)', () => {
+    for (const item of NAV_ITEMS) {
+      expect(APP_ICONS as readonly string[], item.icon).toContain(item.icon);
+    }
+  });
+
+  it('angular.json copies exactly the registered icons', () => {
+    const assets = angular.projects.web.architect.build.options.assets as { glob: string }[];
+    const glob = assets.find((a) => a.glob.endsWith('.svg'))!.glob;
+    const copied = glob.slice(1, -'}.svg'.length).split(',').sort();
+    expect(copied).toEqual([...APP_ICONS].sort());
   });
 });
 
@@ -105,6 +122,23 @@ describe('Login (layout only)', () => {
     login.phone.setValue('9876543210');
     login.sendOtp();
     expect(login.step()).toBe('otp');
+  });
+
+  it('submitting the rendered form moves to the code step without a page reload', async () => {
+    setup();
+    const fixture = TestBed.createComponent(Login);
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const input = host.querySelector<HTMLInputElement>('input[autocomplete="tel-national"]')!;
+    input.value = '9876543210';
+    input.dispatchEvent(new Event('input'));
+    const submit = new Event('submit', { cancelable: true });
+    host.querySelector('form')!.dispatchEvent(submit);
+    await fixture.whenStable();
+    // (ngSubmit) only fires, and the browser's own submit is only prevented,
+    // when the <form> is bound to a FormGroup.
+    expect(submit.defaultPrevented).toBe(true);
+    expect(host.querySelector('input[autocomplete="one-time-code"]')).not.toBeNull();
   });
 
   it('accepts only a 6-digit code', () => {

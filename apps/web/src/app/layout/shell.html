@@ -1,5 +1,7 @@
 <ng-container *transloco="let t">
-  <a class="skip-link" href="#main">{{ t('a11y.skipToContent') }}</a>
+  <button type="button" class="skip-link" (click)="focusMain()">
+    {{ t('a11y.skipToContent') }}
+  </button>
 
   <mat-toolbar class="app-toolbar">
     @if (isHandset()) {
@@ -9,52 +11,52 @@
         [attr.aria-label]="t('a11y.openMenu')"
         [attr.aria-expanded]="drawerOpen()"
       >
-        <mat-icon fontSet="material-symbols-outlined">menu</mat-icon>
+        <mat-icon svgIcon="menu" />
       </button>
     }
     <span class="brand">
-      <mat-icon fontSet="material-symbols-outlined" class="brand-mark" aria-hidden="true"
-        >bolt</mat-icon
-      >
+      <mat-icon class="brand-mark" aria-hidden="true" svgIcon="bolt" />
       <span class="brand-name">{{ t('app.name') }}</span>
     </span>
 
     <span class="flex-spacer"></span>
 
     @if (!pwa.online()) {
-      <span class="offline-chip" role="status">
-        <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">cloud_off</mat-icon>
-        <span class="d-none d-sm-inline">{{ t('pwa.offline') }}</span>
+      <!-- Visual only; the banner below is the one announcement. -->
+      <span class="offline-chip d-none d-sm-inline-flex" aria-hidden="true">
+        <mat-icon svgIcon="cloud_off" />
+        <span>{{ t('pwa.offline') }}</span>
       </span>
     }
 
+    <!-- Shows the OTHER language in its own script, e.g. "हिं" while in English. -->
     <button
       mat-button
       class="lang-toggle"
       (click)="language.toggle()"
-      [matTooltip]="t('a11y.switchLanguage')"
-      [attr.aria-label]="t('a11y.switchLanguage')"
+      [matTooltip]="t('lang.switchTo')"
+      [attr.lang]="t('lang.otherCode')"
     >
-      {{ language.current() === 'en' ? 'हिं' : 'EN' }}
+      {{ t('lang.otherShort') }}
     </button>
 
     <button mat-icon-button [matMenuTriggerFor]="userMenu" [attr.aria-label]="t('a11y.account')">
-      <mat-icon fontSet="material-symbols-outlined">account_circle</mat-icon>
+      <mat-icon svgIcon="account_circle" />
     </button>
     <mat-menu #userMenu="matMenu" xPosition="before">
       <a mat-menu-item routerLink="/settings">
-        <mat-icon fontSet="material-symbols-outlined">settings</mat-icon>
+        <mat-icon svgIcon="settings" />
         <span>{{ t('nav.settings') }}</span>
       </a>
       <a mat-menu-item routerLink="/login">
-        <mat-icon fontSet="material-symbols-outlined">logout</mat-icon>
-        <span>{{ t('auth.logout') }}</span>
+        <mat-icon svgIcon="logout" />
+        <span>{{ t('auth.exitPreview') }}</span>
       </a>
     </mat-menu>
   </mat-toolbar>
 
   @if (!pwa.online()) {
-    <div class="offline-banner" role="alert">{{ t('pwa.offlineDetail') }}</div>
+    <div class="offline-banner" role="status">{{ t('pwa.offlineDetail') }}</div>
   }
 
   <mat-sidenav-container class="app-container">
@@ -75,7 +77,7 @@
             [attr.aria-current]="rla.isActive ? 'page' : null"
             (click)="closeDrawerOnHandset()"
           >
-            <mat-icon matListItemIcon fontSet="material-symbols-outlined">{{ item.icon }}</mat-icon>
+            <mat-icon matListItemIcon [svgIcon]="item.icon" />
             <span matListItemTitle>{{ t(item.labelKey) }}</span>
           </a>
         }

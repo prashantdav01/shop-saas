@@ -53,16 +53,27 @@ body {
   box-sizing: border-box;
 }
 
-// Icons: Material Symbols (bundled) through <mat-icon fontSet="material-symbols-outlined">.
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+// Icons: small Material Symbols SVGs registered in core/icons/icons.ts
+// (<mat-icon svgIcon="home" />). They take the surrounding text colour.
+mat-icon svg {
+  fill: currentColor;
 }
 
 // Keyboard users always see where focus is (billing is keyboard-first).
+// Material components hide the browser outline, so turn on Material's strong
+// focus indicators; plain elements get the same ring through :focus-visible.
+@include mat.strong-focus-indicators(
+  (
+    border-style: solid,
+    border-width: 3px,
+    border-radius: 6px,
+  )
+);
+
+html {
+  --mat-focus-indicator-border-color: var(--mat-sys-tertiary);
+}
+
 :focus-visible {
   outline: 3px solid var(--mat-sys-tertiary);
   outline-offset: 2px;

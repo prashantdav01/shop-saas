@@ -10,7 +10,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
     <ng-container *transloco="let t">
       <h1 class="page-title">{{ t(titleKey()) }}</h1>
       <div class="surface-card empty-state mt-3">
-        <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">construction</mat-icon>
+        <mat-icon aria-hidden="true" svgIcon="construction" />
         <p class="m-0">{{ t('common.comingSoon') }}</p>
       </div>
     </ng-container>

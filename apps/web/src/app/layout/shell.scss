@@ -7,6 +7,9 @@
 .skip-link {
   position: absolute;
   left: -9999px;
+  border: 0;
+  cursor: pointer;
+  font: var(--mat-sys-label-large);
   &:focus {
     left: 8px;
     top: 8px;
@@ -28,6 +31,12 @@
   color: var(--mat-sys-on-primary);
   --mat-icon-button-icon-color: var(--mat-sys-on-primary);
   --mat-button-text-label-text-color: var(--mat-sys-on-primary);
+
+  // The global amber focus ring has almost no contrast on the teal toolbar.
+  --mat-focus-indicator-border-color: var(--mat-sys-on-primary);
+  :focus-visible {
+    outline-color: var(--mat-sys-on-primary);
+  }
 }
 
 .brand {

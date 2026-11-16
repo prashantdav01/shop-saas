@@ -19,9 +19,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
         @for (action of actions; track action.route) {
           <div class="col-12 col-sm-6 col-lg-3">
             <a class="quick-action surface-card" [routerLink]="action.route">
-              <mat-icon fontSet="material-symbols-outlined" class="quick-icon" aria-hidden="true">{{
-                action.icon
-              }}</mat-icon>
+              <mat-icon class="quick-icon" aria-hidden="true" [svgIcon]="action.icon" />
               <span class="quick-label">{{ t(action.labelKey) }}</span>
               <span class="quick-hint">{{ t(action.hintKey) }}</span>
             </a>

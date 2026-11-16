@@ -36,7 +36,13 @@
   font: var(--mat-sys-title-medium);
 }
 
-.demo-note {
-  font: var(--mat-sys-body-small);
-  color: var(--mat-sys-on-surface-variant);
+.preview-banner {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-body-medium);
 }

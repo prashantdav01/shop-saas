@@ -1,4 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { DOCUMENT } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -53,4 +54,11 @@ export class Shell {
   protected closeDrawerOnHandset(): void {
     if (this.isHandset()) this.drawerOpen.set(false);
   }
+
+  /** Skip link: move keyboard focus to the page content without changing the URL. */
+  protected focusMain(): void {
+    this.document.getElementById('main')?.focus();
+  }
+
+  private readonly document = inject(DOCUMENT);
 }

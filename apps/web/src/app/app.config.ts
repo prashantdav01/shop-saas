@@ -12,6 +12,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideTransloco } from '@jsverse/transloco';
 import { routes } from './app.routes';
+import { registerAppIcons } from './core/icons/icons';
 import { LanguageService, LANGUAGES } from './core/i18n/language.service';
 import { TranslocoHttpLoader } from './core/i18n/transloco-loader';
 import { PwaService } from './core/pwa/pwa.service';
@@ -40,6 +41,7 @@ export const appConfig: ApplicationConfig = {
       registrationStrategy: 'registerWhenStable:30000',
     }),
     provideAppInitializer(() => {
+      registerAppIcons();
       inject(LanguageService).init();
       inject(PwaService).init();
     }),
