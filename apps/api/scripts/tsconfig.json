@@ -1,0 +1,16 @@
+{
+  // Type-checks the database scripts. They run directly with Node's built-in
+  // TypeScript support (node scripts/x.mts), so they are never compiled.
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "ES2023",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["*.mts"]
+}

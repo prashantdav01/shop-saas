@@ -52,7 +52,11 @@ jobs:
     env:
       # Throwaway CI-only values for the service containers above; not secrets.
       NODE_ENV: test
-      DATABASE_URL: postgres://shop:shop_ci_only@localhost:5432/shop
+      # Three roles, as on AWS: the container superuser only bootstraps; the owner
+      # (not a superuser) runs migrations; the API uses a restricted role.
+      BOOTSTRAP_DATABASE_URL: postgres://shop:shop_ci_only@localhost:5432/shop
+      MIGRATION_DATABASE_URL: postgres://shop_owner:shop_owner_ci_only@localhost:5432/shop
+      DATABASE_URL: postgres://shop_app:shop_app_ci_only@localhost:5432/shop
       REDIS_URL: redis://localhost:6379
       LOG_LEVEL: error
     steps:
@@ -63,5 +67,19 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Skips cleanly until the test:e2e script exists on the branch.
-      - run: pnpm run --if-present test:e2e
+      - run: pnpm db:bootstrap
+      - run: pnpm db:migrate
+      - run: pnpm db:setup-app-role
+      - run: pnpm test:e2e
+      # Migrations must match the schema: fails if someone edited schema.ts
+      # without generating a migration. stdin is closed and a timeout set, so an
+      # interactive rename prompt fails the job instead of hanging or passing.
+      - run: timeout 120 pnpm --filter api exec drizzle-kit check < /dev/null
+      - run: |
+          set -euo pipefail
+          timeout 120 pnpm --filter api exec drizzle-kit generate --name ci_drift_check < /dev/null
+          if [ -n "$(git status --porcelain apps/api/drizzle)" ]; then
+            echo "src/db/schema.ts has changes with no migration. Run pnpm db:generate."
+            git status --porcelain apps/api/drizzle
+            exit 1
+          fi

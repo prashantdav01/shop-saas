@@ -14,7 +14,9 @@
     "format": "prettier --write .",
     "db:migrate": "pnpm --filter api db:migrate",
     "rules:sync": "node sync-rules.mjs",
-    "test:e2e": "pnpm --filter api test:e2e"
+    "test:e2e": "pnpm --filter api test:e2e",
+    "db:setup-app-role": "pnpm --filter api db:setup-app-role",
+    "db:bootstrap": "pnpm --filter api db:bootstrap"
   },
   "devDependencies": {
     "eslint": "^10.14.0",

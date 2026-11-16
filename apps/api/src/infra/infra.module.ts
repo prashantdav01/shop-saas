@@ -5,12 +5,16 @@ import {
   Module,
   OnApplicationShutdown,
 } from '@nestjs/common';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import Redis from 'ioredis';
 import { Pool } from 'pg';
 import { ENV, type Env, loadEnv } from '../config/env';
+import * as schema from '../db/schema';
 
 export const PG_POOL = Symbol('PG_POOL');
 export const REDIS = Symbol('REDIS');
+/** Drizzle database. Use it only through withShop() for shop-owned tables. */
+export const DB = Symbol('DB');
 
 /** Closes shared connections when the app stops, so restarts and tests exit cleanly. */
 @Injectable()
@@ -52,8 +56,13 @@ class ConnectionCloser implements OnApplicationShutdown {
           maxRetriesPerRequest: 1,
         }),
     },
+    {
+      provide: DB,
+      inject: [PG_POOL],
+      useFactory: (pool: Pool) => drizzle(pool, { schema }),
+    },
     ConnectionCloser,
   ],
-  exports: [ENV, PG_POOL, REDIS],
+  exports: [ENV, PG_POOL, REDIS, DB],
 })
 export class InfraModule {}

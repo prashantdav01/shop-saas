@@ -105,8 +105,11 @@ Use Node 22 (`.nvmrc`). Run from the repository root.
 - `pnpm install`: install everything.
 - `pnpm dev`: start Postgres (host port 5433) and Redis in Docker, then the API and web dev servers.
 - `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`: run across all packages.
-- `pnpm test:e2e`: API end-to-end tests; needs the Docker services running.
-- `pnpm db:migrate`: run database migrations (added in Phase 1 step 4).
+- Database setup, roles and the checklist for adding a shop-owned table: docs/DATABASE.md.
+- `pnpm db:bootstrap`, then `pnpm db:migrate`, then `pnpm db:setup-app-role`: prepare a fresh local database (local and CI only).
+- `pnpm test:e2e`: API end-to-end and shop-isolation tests; needs the database prepared as above.
+- `pnpm --filter api db:generate`: write a migration after changing `apps/api/src/db/schema.ts`. Grants and RLS go in a custom SQL migration. Never edit a migration after merge.
+- Database access in the API: shop-owned tables only through `withShop(db, shopId, tx => ...)` in `src/db/with-shop.ts`. Lint blocks setting the shop anywhere else.
 - API docs (not in production): http://localhost:3000/docs. Health check: http://localhost:3000/health.
 - Local settings: copy `.env.example` to `.env` at the repository root.
 - `pnpm rules:sync`: regenerate CLAUDE.md after editing RULES.md or roles/.
