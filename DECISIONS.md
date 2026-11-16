@@ -8,7 +8,8 @@ Every AI reads this before proposing changes. Add a row when Prashant decides so
 | 2026-11-06 | Team is Prashant plus three AIs: Claude Code (builder, designer), Codex (reviewer), Gemini (auditor, researcher). No Copilot | Superseded | Replaced 2026-11-13, see below |
 | 2026-11-06 | Claude leads UI/UX design; Codex reviews designs; Gemini researches competitors and checks Hindi | Superseded | Replaced 2026-11-13, see below |
 | 2026-11-13 | Team is Prashant plus Claude Code only. Claude builds, reviews (fresh-context reviewer agent) and researches; Codex and Gemini retired | Decided | Fewer hand-offs. Trade-off: one model family, so Level 2 also gets a security review. Revisit if a missed bug reaches a shop |
-| 2026-11-13 | Stack: Angular 21 + PrimeNG, NestJS, PostgreSQL with RLS, Redis, pnpm monorepo | Decided | Confirmed by Prashant |
+| 2026-11-13 | Stack: Angular 21 + PrimeNG, NestJS, PostgreSQL with RLS, Redis, pnpm monorepo | Superseded (UI part) | UI library replaced 2026-11-16, see below; rest of the stack unchanged |
+| 2026-11-16 | UI: Angular Material for components (own Material 3 theme) + Bootstrap for layout only (grid and utilities; no Bootstrap components or JS). PrimeNG dropped | Decided | Prashant's call. Bootstrap limited to layout so its styles do not fight Material's. No PrimeNG code existed yet |
 | 2026-11-06 | Online-first MVP; offline billing after launch | Proposed | Confirm after shop visits |
 | 2026-11-13 | Review limits: risk-based levels, max two rounds, only high/medium block, whole-repo audit at phase gates | Proposed | Reworded for a Claude-only team; see RULES.md, Reviews. Numbers can change |
 | 2026-11-13 | ORM: Drizzle | Decided | SQL migrations; `set_config('app.shop_id', ..., true)` per transaction for RLS (renamed from app.tenant_id on 2026-11-16) |

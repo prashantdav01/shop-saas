@@ -13,7 +13,7 @@ Never edit CLAUDE.md by hand: it is generated.
 
 ## Stack
 
-- Frontend: Angular 21, standalone components, Signals, new control flow, PrimeNG with our own theme. Do not add Angular Material or Bootstrap.
+- Frontend: Angular 21, standalone components, Signals, new control flow. UI: Angular Material (components, themed with our own Material 3 theme) plus Bootstrap for layout only (grid and utility classes; no Bootstrap components, no Bootstrap JavaScript). Do not add PrimeNG or other component libraries.
 - Backend: NestJS (TypeScript).
 - Database: PostgreSQL with row-level security on every tenant table.
 - Jobs and cache: Redis with BullMQ.
@@ -64,7 +64,7 @@ Never edit CLAUDE.md by hand: it is generated.
 
 ## Design
 
-- PrimeNG components only, themed through our design tokens.
+- Angular Material components only, themed through our design tokens (Material 3 theme). Bootstrap only for grid, spacing and other utility classes; when Bootstrap and Material overlap, Material wins.
 - The billing screen is keyboard-first and works with a USB barcode scanner.
 - Every screen works on a 1366x768 laptop and a 360 px wide mid-range Android phone.
 - Every list screen has loading, empty and error states, pagination and search.

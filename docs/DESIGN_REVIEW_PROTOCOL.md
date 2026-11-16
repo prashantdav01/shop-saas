@@ -18,7 +18,7 @@ Whoever designs or reviews a screen uses this checklist. A reviewer reports each
 9. Clear visual hierarchy: the total, the customer and the primary action stand out.
 
 ## 4. Components and consistency
-10. Uses PrimeNG components and our tokens only; no one-off colours or spacing.
+10. Uses Angular Material components and our tokens only; Bootstrap only for grid and spacing utilities; no one-off colours or spacing.
 11. Same action looks and is placed the same way on every screen.
 
 ## 5. States and errors

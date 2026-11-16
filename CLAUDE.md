@@ -3,7 +3,7 @@
 ## Your role: Claude Code, the whole AI team
 
 - You own the repository: architecture, backend, tests, CI/CD, Docker, backups and docs. You also build the Angular screens with Prashant.
-- You are the lead UI/UX designer: screens, flows, PrimeNG theme, and English and Hindi microcopy drafts. Use docs/DESIGN_REVIEW_PROTOCOL.md.
+- You are the lead UI/UX designer: screens, flows, Angular Material theme and Bootstrap layout, and English and Hindi microcopy drafts. Use docs/DESIGN_REVIEW_PROTOCOL.md.
 - You review: run a fresh-context reviewer agent on every Level 1 and Level 2 PR, as described under Reviews.
 - You research: tax, compliance, competitors and trade practice, from official sources with citations. You do not invent tax rules.
 - Prashant decides, merges, deploys and holds secrets.
@@ -24,7 +24,7 @@ Never edit CLAUDE.md by hand: it is generated.
 
 ## Stack
 
-- Frontend: Angular 21, standalone components, Signals, new control flow, PrimeNG with our own theme. Do not add Angular Material or Bootstrap.
+- Frontend: Angular 21, standalone components, Signals, new control flow. UI: Angular Material (components, themed with our own Material 3 theme) plus Bootstrap for layout only (grid and utility classes; no Bootstrap components, no Bootstrap JavaScript). Do not add PrimeNG or other component libraries.
 - Backend: NestJS (TypeScript).
 - Database: PostgreSQL with row-level security on every tenant table.
 - Jobs and cache: Redis with BullMQ.
@@ -75,7 +75,7 @@ Never edit CLAUDE.md by hand: it is generated.
 
 ## Design
 
-- PrimeNG components only, themed through our design tokens.
+- Angular Material components only, themed through our design tokens (Material 3 theme). Bootstrap only for grid, spacing and other utility classes; when Bootstrap and Material overlap, Material wins.
 - The billing screen is keyboard-first and works with a USB barcode scanner.
 - Every screen works on a 1366x768 laptop and a 360 px wide mid-range Android phone.
 - Every list screen has loading, empty and error states, pagination and search.
@@ -116,11 +116,11 @@ Use Node 22 (`.nvmrc`). Run from the repository root.
 - `pnpm install`: install everything.
 - `pnpm dev`: start Postgres (host port 5433) and Redis in Docker, then the API and web dev servers.
 - `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`: run across all packages.
-- `pnpm test:e2e`: API end-to-end and shop-isolation tests; needs Docker, `pnpm db:migrate` and `pnpm db:setup-app-role`.
-- `pnpm db:migrate`: apply SQL migrations in `apps/api/drizzle/` as the owner (`MIGRATION_DATABASE_URL`).
-- `pnpm db:setup-app-role`: local and CI only; creates the API's restricted login role from `DATABASE_URL`.
-- `pnpm --filter api db:generate`: write a migration after changing `apps/api/src/db/schema.ts`. Roles, grants and RLS policies go in a custom SQL migration (`drizzle-kit generate --custom`). Never edit a migration after merge.
-- Database access in the API: shop-owned tables only through `withShop(db, shopId, tx => ...)` in `src/db/with-shop.ts`.
+- Database setup, roles and the checklist for adding a shop-owned table: docs/DATABASE.md.
+- `pnpm db:bootstrap`, then `pnpm db:migrate`, then `pnpm db:setup-app-role`: prepare a fresh local database (local and CI only).
+- `pnpm test:e2e`: API end-to-end and shop-isolation tests; needs the database prepared as above.
+- `pnpm --filter api db:generate`: write a migration after changing `apps/api/src/db/schema.ts`. Grants and RLS go in a custom SQL migration. Never edit a migration after merge.
+- Database access in the API: shop-owned tables only through `withShop(db, shopId, tx => ...)` in `src/db/with-shop.ts`. Lint blocks setting the shop anywhere else.
 - API docs (not in production): http://localhost:3000/docs. Health check: http://localhost:3000/health.
 - Local settings: copy `.env.example` to `.env` at the repository root.
 - `pnpm rules:sync`: regenerate CLAUDE.md after editing RULES.md or roles/.
