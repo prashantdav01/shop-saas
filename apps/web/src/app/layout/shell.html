@@ -1,0 +1,93 @@
+<ng-container *transloco="let t">
+  <button type="button" class="skip-link" (click)="focusMain()">
+    {{ t('a11y.skipToContent') }}
+  </button>
+
+  <mat-toolbar class="app-toolbar">
+    @if (isHandset()) {
+      <button
+        mat-icon-button
+        (click)="drawerOpen.set(!drawerOpen())"
+        [attr.aria-label]="t('a11y.openMenu')"
+        [attr.aria-expanded]="drawerOpen()"
+      >
+        <mat-icon svgIcon="menu" />
+      </button>
+    }
+    <span class="brand">
+      <mat-icon class="brand-mark" aria-hidden="true" svgIcon="bolt" />
+      <span class="brand-name">{{ t('app.name') }}</span>
+    </span>
+
+    <span class="flex-spacer"></span>
+
+    @if (!pwa.online()) {
+      <!-- Visual only; the banner below is the one announcement. -->
+      <span class="offline-chip d-none d-sm-inline-flex" aria-hidden="true">
+        <mat-icon svgIcon="cloud_off" />
+        <span>{{ t('pwa.offline') }}</span>
+      </span>
+    }
+
+    <!-- Shows the OTHER language in its own script, e.g. "हिं" while in English. -->
+    <button
+      mat-button
+      class="lang-toggle"
+      (click)="language.toggle()"
+      [matTooltip]="t('lang.switchTo')"
+      [attr.lang]="t('lang.otherCode')"
+    >
+      {{ t('lang.otherShort') }}
+    </button>
+
+    <button mat-icon-button [matMenuTriggerFor]="userMenu" [attr.aria-label]="t('a11y.account')">
+      <mat-icon svgIcon="account_circle" />
+    </button>
+    <mat-menu #userMenu="matMenu" xPosition="before">
+      <a mat-menu-item routerLink="/settings">
+        <mat-icon svgIcon="settings" />
+        <span>{{ t('nav.settings') }}</span>
+      </a>
+      <a mat-menu-item routerLink="/login">
+        <mat-icon svgIcon="logout" />
+        <span>{{ t('auth.exitPreview') }}</span>
+      </a>
+    </mat-menu>
+  </mat-toolbar>
+
+  @if (!pwa.online()) {
+    <div class="offline-banner" role="status">{{ t('pwa.offlineDetail') }}</div>
+  }
+
+  <mat-sidenav-container class="app-container">
+    <mat-sidenav
+      class="app-sidenav"
+      [mode]="sidenavMode()"
+      [opened]="sidenavOpened()"
+      (closedStart)="drawerOpen.set(false)"
+    >
+      <mat-nav-list>
+        @for (item of navItems; track item.route) {
+          <a
+            mat-list-item
+            [routerLink]="item.route"
+            routerLinkActive
+            #rla="routerLinkActive"
+            [activated]="rla.isActive"
+            [attr.aria-current]="rla.isActive ? 'page' : null"
+            (click)="closeDrawerOnHandset()"
+          >
+            <mat-icon matListItemIcon [svgIcon]="item.icon" />
+            <span matListItemTitle>{{ t(item.labelKey) }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <main id="main" class="app-main" tabindex="-1">
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</ng-container>

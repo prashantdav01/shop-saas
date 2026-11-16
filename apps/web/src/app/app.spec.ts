@@ -1,23 +1,151 @@
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
+import { provideRouter, Router } from '@angular/router';
+import { provideTransloco } from '@jsverse/transloco';
+import en from '../../public/i18n/en.json';
+import hi from '../../public/i18n/hi.json';
+import angular from '../../angular.json';
+import { routes } from './app.routes';
+import { APP_ICONS } from './core/icons/icons';
+import { NAV_ITEMS } from './layout/nav-items';
+import { Login } from './pages/login/login';
 
-describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-    }).compileComponents();
+type Tree = { [key: string]: string | Tree };
+
+function keys(tree: Tree, prefix = ''): string[] {
+  return Object.entries(tree).flatMap(([k, v]) =>
+    typeof v === 'string' ? [`${prefix}${k}`] : keys(v, `${prefix}${k}.`),
+  );
+}
+
+function placeholders(text: string): string[] {
+  return [...text.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]!).sort();
+}
+
+function lookup(tree: Tree, key: string): string | undefined {
+  let node: string | Tree | undefined = tree;
+  for (const part of key.split('.')) {
+    node = typeof node === 'object' ? node[part] : undefined;
+  }
+  return typeof node === 'string' ? node : undefined;
+}
+
+describe('translations', () => {
+  it('Hindi and English have exactly the same keys', () => {
+    expect(keys(hi as Tree).sort()).toEqual(keys(en as Tree).sort());
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+  it('no translation is empty', () => {
+    for (const lang of [en, hi] as Tree[]) {
+      for (const key of keys(lang)) {
+        expect(lookup(lang, key)?.trim(), key).toBeTruthy();
+      }
+    }
   });
 
-  it('should render title', async () => {
-    const fixture = TestBed.createComponent(App);
+  it('placeholders like {{mobile}} match between languages', () => {
+    for (const key of keys(en as Tree)) {
+      expect(placeholders(lookup(hi as Tree, key)!), key).toEqual(
+        placeholders(lookup(en as Tree, key)!),
+      );
+    }
+  });
+
+  it('every menu label has a translation', () => {
+    for (const item of NAV_ITEMS) {
+      expect(lookup(en as Tree, item.labelKey), item.labelKey).toBeTruthy();
+    }
+  });
+});
+
+describe('icons', () => {
+  it('every menu icon is registered (otherwise it shows blank)', () => {
+    for (const item of NAV_ITEMS) {
+      expect(APP_ICONS as readonly string[], item.icon).toContain(item.icon);
+    }
+  });
+
+  it('angular.json copies exactly the registered icons', () => {
+    const assets = angular.projects.web.architect.build.options.assets as { glob: string }[];
+    const glob = assets.find((a) => a.glob.endsWith('.svg'))!.glob;
+    const copied = glob.slice(1, -'}.svg'.length).split(',').sort();
+    expect(copied).toEqual([...APP_ICONS].sort());
+  });
+});
+
+describe('routes', () => {
+  it('every menu item opens a real page, not "not found"', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+    const router = TestBed.inject(Router);
+    for (const item of NAV_ITEMS) {
+      await router.navigateByUrl(item.route);
+      const leaf = router.routerState.snapshot.root.firstChild?.firstChild;
+      expect(leaf?.routeConfig?.path, item.route).toBe(item.route.slice(1));
+    }
+  });
+});
+
+describe('Login (layout only)', () => {
+  function setup() {
+    TestBed.configureTestingModule({
+      imports: [Login],
+      providers: [
+        provideRouter([]),
+        provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
+      ],
+    });
+    const fixture = TestBed.createComponent(Login);
+    return fixture.componentInstance as unknown as {
+      phone: { setValue(v: string): void; valid: boolean };
+      otp: { setValue(v: string): void; valid: boolean };
+      step: () => string;
+      sendOtp(): void;
+    };
+  }
+
+  it.each(['9876543210', '6000000000'])('accepts Indian mobile %s', (mobile) => {
+    const login = setup();
+    login.phone.setValue(mobile);
+    expect(login.phone.valid).toBe(true);
+  });
+
+  it.each(['5876543210', '987654321', '98765432100', '98765abcde', ''])('rejects %s', (mobile) => {
+    const login = setup();
+    login.phone.setValue(mobile);
+    expect(login.phone.valid).toBe(false);
+  });
+
+  it('moves to the code step only with a valid number', () => {
+    const login = setup();
+    login.phone.setValue('123');
+    login.sendOtp();
+    expect(login.step()).toBe('phone');
+    login.phone.setValue('9876543210');
+    login.sendOtp();
+    expect(login.step()).toBe('otp');
+  });
+
+  it('submitting the rendered form moves to the code step without a page reload', async () => {
+    setup();
+    const fixture = TestBed.createComponent(Login);
     await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, web');
+    const host = fixture.nativeElement as HTMLElement;
+    const input = host.querySelector<HTMLInputElement>('input[autocomplete="tel-national"]')!;
+    input.value = '9876543210';
+    input.dispatchEvent(new Event('input'));
+    const submit = new Event('submit', { cancelable: true });
+    host.querySelector('form')!.dispatchEvent(submit);
+    await fixture.whenStable();
+    // (ngSubmit) only fires, and the browser's own submit is only prevented,
+    // when the <form> is bound to a FormGroup.
+    expect(submit.defaultPrevented).toBe(true);
+    expect(host.querySelector('input[autocomplete="one-time-code"]')).not.toBeNull();
+  });
+
+  it('accepts only a 6-digit code', () => {
+    const login = setup();
+    login.otp.setValue('12345');
+    expect(login.otp.valid).toBe(false);
+    login.otp.setValue('123456');
+    expect(login.otp.valid).toBe(true);
   });
 });

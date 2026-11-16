@@ -27,17 +27,38 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "{account_circle,bar_chart,bolt,cable,cloud_off,construction,groups,home,info,inventory_2,local_shipping,logout,menu,point_of_sale,settings,verified}.svg",
+                "input": "node_modules/@material-symbols/svg-400/outlined",
+                "output": "icons/symbols"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap-grid.min.css",
+              "node_modules/bootstrap/dist/css/bootstrap-utilities.min.css",
+              "node_modules/@fontsource/noto-sans/latin-400.css",
+              "node_modules/@fontsource/noto-sans/latin-500.css",
+              "node_modules/@fontsource/noto-sans/latin-700.css",
+              "node_modules/@fontsource/noto-sans/devanagari-400.css",
+              "node_modules/@fontsource/noto-sans/devanagari-500.css",
+              "node_modules/@fontsource/noto-sans/devanagari-700.css",
+              "node_modules/@fontsource/noto-sans-devanagari/latin-400.css",
+              "node_modules/@fontsource/noto-sans-devanagari/latin-500.css",
+              "node_modules/@fontsource/noto-sans-devanagari/latin-700.css",
+              "node_modules/@fontsource/noto-sans-devanagari/devanagari-400.css",
+              "node_modules/@fontsource/noto-sans-devanagari/devanagari-500.css",
+              "node_modules/@fontsource/noto-sans-devanagari/devanagari-700.css",
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "850kB",
+                  "maximumError": "1.2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -45,7 +66,8 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "serviceWorker": "ngsw-config.json"
             },
             "development": {
               "optimization": false,

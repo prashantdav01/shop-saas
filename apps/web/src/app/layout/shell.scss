@@ -1,0 +1,110 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  border: 0;
+  cursor: pointer;
+  font: var(--mat-sys-label-large);
+  &:focus {
+    left: 8px;
+    top: 8px;
+    z-index: 1000;
+    padding: 8px 12px;
+    background: var(--mat-sys-surface);
+    color: var(--mat-sys-primary);
+    border-radius: var(--mat-sys-corner-small);
+  }
+}
+
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  gap: 4px;
+  padding-inline: 8px 12px;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  --mat-icon-button-icon-color: var(--mat-sys-on-primary);
+  --mat-button-text-label-text-color: var(--mat-sys-on-primary);
+
+  // The global amber focus ring has almost no contrast on the teal toolbar.
+  --mat-focus-indicator-border-color: var(--mat-sys-on-primary);
+  :focus-visible {
+    outline-color: var(--mat-sys-on-primary);
+  }
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--mat-sys-title-large);
+}
+
+.brand-mark {
+  color: var(--mat-sys-tertiary-fixed);
+}
+
+.flex-spacer {
+  flex: 1 1 auto;
+}
+
+.lang-toggle {
+  min-width: 48px;
+  font: var(--mat-sys-title-medium);
+}
+
+.offline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-label-large);
+}
+
+.offline-banner {
+  padding: 8px 16px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-body-medium);
+}
+
+.app-container {
+  flex: 1 1 auto;
+  background: transparent;
+}
+
+.app-sidenav {
+  width: 256px;
+  // Long labels (and Hindi) wrap instead of being cut off; rows stay at least
+  // 48px tall so they are easy to tap.
+  --mat-list-list-item-one-line-container-height: auto;
+  .mat-mdc-list-item {
+    min-height: 48px;
+    padding-block: 6px;
+  }
+  .mdc-list-item__primary-text {
+    white-space: normal;
+  }
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface);
+}
+
+.app-main {
+  padding: 16px;
+  max-width: 1280px;
+  margin-inline: auto;
+  outline: none;
+
+  @media (min-width: 768px) {
+    padding: 24px;
+  }
+}

@@ -1,1 +1,106 @@
-/* You can add global styles to this file, and also import other style files */
+// Global styles. Angular Material owns components and colours (Material 3 theme);
+// Bootstrap is loaded only as grid + utilities CSS (see angular.json), never its
+// components, JavaScript or Reboot. Fonts and icons are bundled so the PWA works offline.
+@use '@angular/material' as mat;
+@use './styles/theme-colors' as brand;
+
+html {
+  height: 100%;
+  // Light by default; follows the device in dark mode.
+  color-scheme: light dark;
+  @include mat.theme(
+    (
+      color: (
+        primary: brand.$primary-palette,
+        tertiary: brand.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: (
+          'Noto Sans',
+          'Noto Sans Devanagari',
+          system-ui,
+          sans-serif,
+        ),
+        brand-family: (
+          'Noto Sans',
+          'Noto Sans Devanagari',
+          system-ui,
+          sans-serif,
+        ),
+      ),
+      density: 0,
+    )
+  );
+}
+
+// Hindi text needs a little more line height for matras.
+html[lang='hi'] body {
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background-color: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// Icons: small Material Symbols SVGs registered in core/icons/icons.ts
+// (<mat-icon svgIcon="home" />). They take the surrounding text colour.
+mat-icon svg {
+  fill: currentColor;
+}
+
+// Keyboard users always see where focus is (billing is keyboard-first).
+// Material components hide the browser outline, so turn on Material's strong
+// focus indicators; plain elements get the same ring through :focus-visible.
+@include mat.strong-focus-indicators(
+  (
+    border-style: solid,
+    border-width: 3px,
+    border-radius: 6px,
+  )
+);
+
+html {
+  --mat-focus-indicator-border-color: var(--mat-sys-tertiary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--mat-sys-tertiary);
+  outline-offset: 2px;
+}
+
+// Touch targets at least 44px on phones (design checklist item 8).
+@media (pointer: coarse) {
+  .mat-mdc-icon-button,
+  .mat-mdc-button-base {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+.page-title {
+  font: var(--mat-sys-headline-small);
+  margin: 0 0 4px;
+}
+
+.page-subtitle {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+  margin: 0;
+}
+
+.surface-card {
+  background: var(--mat-sys-surface);
+  border-radius: var(--mat-sys-corner-large);
+  border: 1px solid var(--mat-sys-outline-variant);
+}
