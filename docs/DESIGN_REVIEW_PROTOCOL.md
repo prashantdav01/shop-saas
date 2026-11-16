@@ -16,9 +16,10 @@ Whoever designs or reviews a screen uses this checklist. A reviewer reports each
 7. Works on a 1366x768 laptop without horizontal scrolling.
 8. Works on a 360 px wide phone; touch targets are at least 44 px.
 9. Clear visual hierarchy: the total, the customer and the primary action stand out.
+9a. Works as an installed PWA (standalone window, no browser bar): nothing depends on browser back/forward buttons, and the screen says clearly when the connection is lost.
 
 ## 4. Components and consistency
-10. Uses PrimeNG components and our tokens only; no one-off colours or spacing.
+10. Uses Angular Material components and our tokens only; Bootstrap only for grid and spacing utilities; no one-off colours or spacing.
 11. Same action looks and is placed the same way on every screen.
 
 ## 5. States and errors

@@ -22,7 +22,7 @@ Claude Code builds, reviews and researches. Prashant decides.
 | Task | Who |
 | --- | --- |
 | Competitor research | Claude |
-| Screens, flows, PrimeNG theme, component states | Claude |
+| Screens, flows, Angular Material theme, Bootstrap layout, component states | Claude |
 | Button labels, errors, empty states (English and Hindi draft) | Claude |
 | Usability and accessibility review | Claude, fresh context, using DESIGN_REVIEW_PROTOCOL.md |
 | Logo, app icon, illustrations | Prashant chooses a tool |
