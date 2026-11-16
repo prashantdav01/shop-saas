@@ -6,6 +6,7 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "postinstall": "pnpm --filter @shop/shared build",
     "dev": "docker compose up -d && pnpm -r --parallel --filter ./apps/* dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",

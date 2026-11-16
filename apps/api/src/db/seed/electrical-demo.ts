@@ -4,8 +4,10 @@
  * Shaped like docs/schema.dbml. The tables are created in Phase 2 (shop, stores,
  * staff) and Phase 3 (catalogue onward); a loader will insert this data then.
  *
- * All names and brands are invented. HSN codes and GST rates are PLACEHOLDERS
- * for the demo only: UNVERIFIED, not tax advice. A CA confirms real values.
+ * All names and brands are invented; barcodes use the GS1 "200" in-store range so
+ * they cannot match real products. HSN codes and GST rates are PLACEHOLDERS for
+ * the demo only (see DEMO_TAX_VALUES_ARE_PLACEHOLDERS): not tax facts. A CA
+ * confirms real values.
  */
 import { type Milli, type Paise, parseInr, parseQty } from '@shop/shared';
 
@@ -117,7 +119,8 @@ export interface DemoProduct {
   hsnCode: string;
   /** PLACEHOLDER, unverified. Basis points: 1800 = 18%. */
   gstRateBp: number;
-  baseUnit: 'piece' | 'metre' | 'pack';
+  /** Matches schema.dbml base units (piece, metre, kg). */
+  baseUnit: 'piece' | 'metre';
   purchaseUnit: 'piece' | 'box' | 'coil' | 'pack';
   /** Base units per purchase unit (90 m per coil). */
   purchaseUnitFactor: Milli;
@@ -125,6 +128,12 @@ export interface DemoProduct {
   tracksSerials: boolean;
   variants: DemoVariant[];
 }
+
+/** A variant as written below; brand warranty defaults to the category's. */
+type RawVariant = Omit<DemoVariant, 'brandWarrantyMonths'> & {
+  brandWarrantyMonths?: number;
+};
+type RawProduct = Omit<DemoProduct, 'variants'> & { variants: RawVariant[] };
 
 const v = (
   sku: string,
@@ -137,19 +146,19 @@ const v = (
   > & {
     reorder?: string;
   } = {},
-): DemoVariant => ({
+): RawVariant => ({
   sku,
   barcode: extra.barcode,
   attributes,
   costPaise: rs(cost),
   listPricePaise: rs(list),
   mrpPaise: mrp === null ? null : rs(mrp),
-  brandWarrantyMonths: extra.brandWarrantyMonths ?? 0,
+  brandWarrantyMonths: extra.brandWarrantyMonths,
   shopWarrantyMonths: extra.shopWarrantyMonths ?? 0,
   reorderLevel: qty(extra.reorder ?? '0'),
 });
 
-export const DEMO_PRODUCTS: readonly DemoProduct[] = [
+const RAW_PRODUCTS: readonly RawProduct[] = [
   // ---- Wires & cables: stored in metres, bought by the 90 m coil ----
   {
     name: 'House wire FR PVC',
@@ -268,7 +277,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '28.00',
         '42.00',
         '55.00',
-        { barcode: '8901000000011', reorder: '40' },
+        { barcode: '2000000000011', reorder: '40' },
       ),
       v(
         'JS-SW6-GRY',
@@ -276,7 +285,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '32.00',
         '48.00',
         '62.00',
-        { barcode: '8901000000028', reorder: '20' },
+        { barcode: '2000000000028', reorder: '20' },
       ),
     ],
   },
@@ -299,7 +308,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '85.00',
         '120.00',
         '150.00',
-        { barcode: '8901000000035', reorder: '10' },
+        { barcode: '2000000000035', reorder: '10' },
       ),
     ],
   },
@@ -317,11 +326,11 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     tracksSerials: false,
     variants: [
       v('JS-MCB-SP-16', { rating: '16A' }, '140.00', '210.00', '265.00', {
-        barcode: '8901000000042',
+        barcode: '2000000000042',
         reorder: '12',
       }),
       v('JS-MCB-SP-32', { rating: '32A' }, '160.00', '235.00', '295.00', {
-        barcode: '8901000000059',
+        barcode: '2000000000059',
         reorder: '6',
       }),
     ],
@@ -357,7 +366,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     category: 'lighting',
     brand: 'Roshni Lights',
     hsnCode: '8539',
-    gstRateBp: 1200,
+    gstRateBp: 1800,
     baseUnit: 'piece',
     purchaseUnit: 'box',
     purchaseUnitFactor: qty('50'),
@@ -370,7 +379,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '48.00',
         '75.00',
         '99.00',
-        { barcode: '8901000000066', brandWarrantyMonths: 12, reorder: '50' },
+        { barcode: '2000000000066', brandWarrantyMonths: 12, reorder: '50' },
       ),
       v(
         'RL-BLB-12W-CW',
@@ -378,7 +387,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '62.00',
         '95.00',
         '129.00',
-        { barcode: '8901000000073', brandWarrantyMonths: 12, reorder: '25' },
+        { barcode: '2000000000073', brandWarrantyMonths: 12, reorder: '25' },
       ),
       v(
         'RL-BLB-9W-WW',
@@ -600,7 +609,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
         '180.00',
         '260.00',
         '349.00',
-        { barcode: '8901000000080', brandWarrantyMonths: 6, reorder: '5' },
+        { barcode: '2000000000080', brandWarrantyMonths: 6, reorder: '5' },
       ),
       v(
         'JS-EXT-4-3M',
@@ -688,13 +697,13 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     ],
   },
   {
-    name: 'Cable clips',
+    name: 'Cable clips (packet of 100)',
     nameHi: 'केबल क्लिप',
     category: 'tools',
     brand: 'Mistri Tools',
     hsnCode: '3926',
     gstRateBp: 1800,
-    baseUnit: 'pack',
+    baseUnit: 'piece',
     purchaseUnit: 'box',
     purchaseUnitFactor: qty('20'),
     tracksBatches: false,
@@ -750,12 +759,25 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     tracksSerials: false,
     variants: [
       v('MT-TESTER', {}, '22.00', '35.00', '50.00', {
-        barcode: '8901000000097',
+        barcode: '2000000000097',
         reorder: '5',
       }),
     ],
   },
 ];
+
+/** Products with each variant's brand warranty defaulted from its category. */
+export const DEMO_PRODUCTS: readonly DemoProduct[] = RAW_PRODUCTS.map((p) => {
+  const category = DEMO_CATEGORIES.find((c) => c.key === p.category)!;
+  return {
+    ...p,
+    variants: p.variants.map((variant) => ({
+      ...variant,
+      brandWarrantyMonths:
+        variant.brandWarrantyMonths ?? category.defaultBrandWarrantyMonths,
+    })),
+  };
+});
 
 export type StoreKey = 'godown' | 'counter';
 
@@ -768,6 +790,9 @@ export const DEMO_STORES: readonly {
   { key: 'counter', name: 'Counter', type: 'counter' },
 ];
 
+/** The date the demo shop starts using the app; opening stock and balances are as of this day. */
+export const DEMO_OPENING_DATE = '2026-11-01';
+
 /** Opening stock for every variant that is not coil- or serial-tracked. */
 export interface DemoOpeningStock {
   sku: string;
@@ -775,68 +800,76 @@ export interface DemoOpeningStock {
   qty: Milli;
 }
 
-/** Two coils of 1.5 sq mm red wire: one open (part cut) at the counter, one full in the godown. */
+/**
+ * Coils (batches) as counted on the opening date. A coil already part cut
+ * before the shop started on the app is entered with what is left as its
+ * `initialQty`, so remaining = initial + movements holds from day one;
+ * `nominalLength` records the coil's original size for display only.
+ */
 export interface DemoCoil {
   sku: string;
   store: StoreKey;
   batchCode: string;
+  nominalLength: Milli;
   initialQty: Milli;
   remainingQty: Milli;
   isOpen: boolean;
   costPaise: Paise;
+  receivedAt: string;
 }
 
+const coil = (
+  sku: string,
+  store: StoreKey,
+  batchCode: string,
+  nominal: string,
+  counted: string,
+  isOpen: boolean,
+  cost: string,
+): DemoCoil => ({
+  sku,
+  store,
+  batchCode,
+  nominalLength: qty(nominal),
+  initialQty: qty(counted),
+  remainingQty: qty(counted),
+  isOpen,
+  costPaise: rs(cost),
+  receivedAt: DEMO_OPENING_DATE,
+});
+
 export const DEMO_COILS: readonly DemoCoil[] = [
-  {
-    sku: 'PC-HW-1.5-RED',
-    store: 'counter',
-    batchCode: 'C-2611-01',
-    initialQty: qty('90'),
-    remainingQty: qty('37.5'),
-    isOpen: true,
-    costPaise: rs('17.80'),
-  },
-  {
-    sku: 'PC-HW-1.5-RED',
-    store: 'godown',
-    batchCode: 'C-2611-02',
-    initialQty: qty('90'),
-    remainingQty: qty('90'),
-    isOpen: false,
-    costPaise: rs('17.80'),
-  },
+  coil('PC-HW-1.0-RED', 'godown', 'C-2611-01', '90', '90', false, '12.40'),
+  // The demo's main example: an open coil at the counter, a full one in the godown.
+  coil('PC-HW-1.5-RED', 'counter', 'C-2611-02', '90', '37.5', true, '17.80'),
+  coil('PC-HW-1.5-RED', 'godown', 'C-2611-03', '90', '90', false, '17.80'),
+  coil('PC-HW-1.5-BLK', 'counter', 'C-2611-04', '90', '90', false, '17.80'),
+  coil('PC-HW-2.5-RED', 'godown', 'C-2611-05', '90', '90', false, '28.60'),
+  coil('PC-HW-4.0-BLK', 'godown', 'C-2611-06', '90', '90', false, '45.00'),
+  coil('PC-CAT6-GRY', 'counter', 'C-2611-07', '305', '305', false, '14.00'),
+  coil('PC-FLX-0.75-WHT', 'counter', 'C-2611-08', '90', '64', true, '9.50'),
 ];
 
-/** Three serial-tracked units: two in stock, one sold to the contractor. */
+/**
+ * Serial-numbered units in stock on the opening date: at least one of every
+ * serial-tracked item. Sold units are not seeded; a sale (with its serial_sales
+ * row and warranty dates) is created through the real billing flow.
+ */
 export interface DemoSerial {
   sku: string;
   store: StoreKey;
   serialNumber: string;
-  status: 'in_stock' | 'sold';
-  /** For a sold unit: the IST invoice date the warranty counts from. */
-  soldOn?: string;
 }
 
 export const DEMO_SERIALS: readonly DemoSerial[] = [
-  {
-    sku: 'PA-CF-1200-WHT',
-    store: 'counter',
-    serialNumber: 'PWN24CF0001',
-    status: 'in_stock',
-  },
-  {
-    sku: 'PA-GY-15L',
-    store: 'godown',
-    serialNumber: 'PWN24GY0042',
-    status: 'in_stock',
-  },
-  {
-    sku: 'SP-INV-1100',
-    store: 'counter',
-    serialNumber: 'SKT24IN0107',
-    status: 'sold',
-    soldOn: '2026-10-05',
-  },
+  { sku: 'PA-CF-1200-WHT', store: 'counter', serialNumber: 'DEMO-CF-0001' },
+  { sku: 'PA-CF-1200-WHT', store: 'godown', serialNumber: 'DEMO-CF-0002' },
+  { sku: 'PA-CF-1200-BRN', store: 'counter', serialNumber: 'DEMO-CF-0003' },
+  { sku: 'PA-GY-15L', store: 'godown', serialNumber: 'DEMO-GY-0001' },
+  { sku: 'PA-MG-750', store: 'counter', serialNumber: 'DEMO-MG-0001' },
+  { sku: 'SP-INV-1100', store: 'counter', serialNumber: 'DEMO-IN-0001' },
+  { sku: 'SP-BAT-150', store: 'godown', serialNumber: 'DEMO-BT-0001' },
+  { sku: 'KE-SPK-10W', store: 'counter', serialNumber: 'DEMO-SK-0001' },
 ];
 
 export const DEMO_OPENING_STOCK: readonly DemoOpeningStock[] =
@@ -877,6 +910,7 @@ export const DEMO_PRICE_LISTS: readonly DemoPriceList[] = [
   },
 ];
 
+/** Columns of the `parties` table (schema.dbml). Balances are ledger entries, below. */
 export interface DemoParty {
   key: string;
   type: 'customer' | 'supplier' | 'both';
@@ -888,16 +922,14 @@ export interface DemoParty {
   creditAllowed: boolean;
   creditLimitPaise: Paise | null;
   creditDays: number;
-  /** Money the party owes the shop (positive) or the shop owes them (negative). */
-  openingBalancePaise: Paise;
 }
 
-/** Phone numbers use the 99999 0000x pattern so they are obviously fake. */
+/** Names say "Demo"; phone numbers use the 99999 0000x pattern so they are obviously fake. */
 export const DEMO_PARTIES: readonly DemoParty[] = [
   {
     key: 'contractor',
     type: 'customer',
-    name: 'Sharma Electrical Works (contractor)',
+    name: 'Demo Contractor Works',
     phone: '9999900001',
     gstin: null,
     stateCode: '09',
@@ -905,7 +937,6 @@ export const DEMO_PARTIES: readonly DemoParty[] = [
     creditAllowed: true,
     creditLimitPaise: rs('50000'),
     creditDays: 30,
-    openingBalancePaise: rs('12450'),
   },
   {
     key: 'walkin',
@@ -918,12 +949,11 @@ export const DEMO_PARTIES: readonly DemoParty[] = [
     creditAllowed: false,
     creditLimitPaise: null,
     creditDays: 0,
-    openingBalancePaise: 0,
   },
   {
     key: 'supplier',
     type: 'supplier',
-    name: 'Prakash Distributors',
+    name: 'Demo Distributors',
     phone: '9999900002',
     gstin: null,
     stateCode: '09',
@@ -931,11 +961,39 @@ export const DEMO_PARTIES: readonly DemoParty[] = [
     creditAllowed: true,
     creditLimitPaise: null,
     creditDays: 45,
-    openingBalancePaise: -rs('38200'),
   },
 ];
 
-/** The demo shop itself (Phase 2 `shops` row) and its module switches. */
+/**
+ * Opening balances: `party_ledger` rows with entry_type 'opening'.
+ * Positive = the party owes the shop; negative = the shop owes the party.
+ */
+export interface DemoOpeningBalance {
+  party: string;
+  amountPaise: Paise;
+  asOf: string;
+  dueDate: string | null;
+}
+
+export const DEMO_OPENING_BALANCES: readonly DemoOpeningBalance[] = [
+  {
+    party: 'contractor',
+    amountPaise: rs('12450'),
+    asOf: DEMO_OPENING_DATE,
+    dueDate: '2026-11-30',
+  },
+  {
+    party: 'supplier',
+    amountPaise: -rs('38200'),
+    asOf: DEMO_OPENING_DATE,
+    dueDate: '2026-12-15',
+  },
+];
+
+/**
+ * The demo shop: fields named after the `shops` columns in src/db/schema.ts.
+ * `planCode` resolves to plans.id. Created through app_create_shop() in real use.
+ */
 export const DEMO_SHOP = {
   name: 'Demo Electricals',
   gstType: 'unregistered' as const,
@@ -943,14 +1001,23 @@ export const DEMO_SHOP = {
   stateCode: '09',
   turnoverBand: 'below_1_5_crore',
   preset: 'electrical_electronics',
-  modules: {
-    batchTracking: true,
-    serialTracking: true,
-    decimalQty: true,
-    priceLists: true,
-    quotations: true,
-    creditLedger: true,
-    expiryTracking: false,
-    pharmacyCompliance: false,
-  },
+  planCode: 'trial',
+  subscriptionStatus: 'trialing' as const,
+  modBatchTracking: true,
+  modSerialTracking: true,
+  modDecimalQty: true,
+  modPriceLists: true,
+  modQuotations: true,
+  modCreditLedger: true,
+  modExpiryTracking: false,
+  modPharmacyCompliance: false,
+  allowNegativeStock: true,
+  mrpPolicy: 'warn' as const,
 };
+
+/**
+ * HSN codes and GST rates above are demo placeholders, not tax facts. A loader
+ * must mark this shop as demo data, and screens must not present these rates as
+ * correct. A CA confirms real values before any real shop uses them.
+ */
+export const DEMO_TAX_VALUES_ARE_PLACEHOLDERS = true;
