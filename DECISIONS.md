@@ -15,7 +15,9 @@ Every AI reads this before proposing changes. Add a row when Prashant decides so
 | 2026-11-13 | ORM: Drizzle | Decided | SQL migrations; `set_config('app.shop_id', ..., true)` per transaction for RLS (renamed from app.tenant_id on 2026-11-16) |
 | - | Auth: managed provider or own JWT with mobile OTP | Open | |
 | - | Payment gateway for subscriptions | Open | |
-| 2026-11-13 | Hosting: AWS Mumbai (ap-south-1) | Decided | Exact services (App Runner/ECS, RDS) chosen in Phase 1 step 9 |
+| 2026-11-13 | Hosting: AWS Mumbai (ap-south-1) | Deferred | Still the target, but nothing is bought until the pilot (Phase 6); see next row |
+| 2026-11-16 | No paid hosting, domain or SMS until the pilot. Phase 1 gate becomes: CI passes and publishes the API Docker image (GHCR, free for public repos); one command runs the whole app production-like on the local PC. Test OTP (no real SMS) until then | Decided | Prashant has no budget yet. The same image moves to AWS later; AWS runbook stays in docs/DATABASE.md |
+| 2026-11-16 | The web app is a PWA: installable on phone and desktop, app shell cached, update prompt, offline page | Decided | Prashant's call. Online-first still holds: offline billing (sync, conflicts) stays on the later list. Service worker must never cache API responses that carry shop data |
 | 2026-11-13 | Code repository lives in `shop-saas/`; `AI Rules/` copied to its root | Decided | Edit rules in the repo from now on |
 | 2026-11-13 | Rejected Codex finding (PR #1): "`main.ts` resolves `.env` outside the repository" | Rejected | `apps/api/dist/main.js` + `../../../.env` is the repo root; verified by starting the built API with only the root `.env` and getting `/health` ok |
 | 2026-11-16 | Three database roles: bootstrap superuser (local/CI only), owner (not superuser, BYPASSRLS, CREATEROLE) for migrations, restricted API role in `app_user` | Decided | Local and CI behave like AWS. See docs/DATABASE.md. RDS support for BYPASSRLS to be confirmed in step 9 |

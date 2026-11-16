@@ -18,7 +18,8 @@ Never edit CLAUDE.md by hand: it is generated.
 - Database: PostgreSQL with row-level security on every tenant table.
 - Jobs and cache: Redis with BullMQ.
 - Repository: pnpm monorepo with `apps/web`, `apps/api`, `packages/shared`.
-- Hosting: managed services in an Indian (Mumbai) region.
+- Hosting: none paid until the pilot. The app runs production-like on the local PC from the CI-built Docker image; AWS Mumbai later (see DECISIONS.md).
+- PWA: the web app is installable (Angular service worker, web manifest, icons), caches only the app shell and static assets, shows an update prompt and an offline page. Never cache API responses that carry shop data. Offline billing is not in the MVP.
 - Open choices (ORM, auth provider, payment gateway, host) are listed in DECISIONS.md. Do not pick one silently.
 
 ## Data rules
